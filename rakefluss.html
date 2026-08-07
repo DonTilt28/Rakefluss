@@ -1,0 +1,865 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#10131A">
+<title>Rakefluss</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Sans+Condensed:wght@600;700&display=swap');
+
+:root{
+  --ink:#10131A; --surface:#191E27; --surface2:#141922; --line:#2A313D;
+  --bone:#E6E2D8; --muted:#828C9D; --rake:#C9354A; --fish:#D9A441; --reg:#4FA3A5;
+  --mono:'IBM Plex Mono',ui-monospace,Menlo,monospace;
+  --sans:'IBM Plex Sans',-apple-system,system-ui,sans-serif;
+  --cond:'IBM Plex Sans Condensed','IBM Plex Sans',sans-serif;
+}
+*,*::before,*::after{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+body{margin:0;background:var(--ink);color:var(--bone);font-family:var(--sans);font-size:14px;
+  line-height:1.5;padding:max(16px,env(safe-area-inset-top)) 14px calc(60px + env(safe-area-inset-bottom));
+  -webkit-text-size-adjust:100%}
+.wrap{max-width:840px;margin:0 auto}
+
+header{border-bottom:1px solid var(--line);padding-bottom:14px;margin-bottom:22px}
+h1{font-family:var(--cond);font-weight:700;font-size:clamp(30px,9vw,46px);letter-spacing:-.02em;
+  text-transform:uppercase;line-height:.95;margin:0}
+.sub{font-family:var(--mono);font-size:11px;color:var(--muted);letter-spacing:.14em;
+  text-transform:uppercase;margin-top:8px}
+
+section{margin-bottom:24px}
+.lab{font-family:var(--mono);font-size:10px;letter-spacing:.16em;text-transform:uppercase;
+  color:var(--muted);margin-bottom:10px;display:block}
+.panel{background:var(--surface);border:1px solid var(--line);padding:15px}
+
+.fields{display:grid;grid-template-columns:repeat(2,1fr);gap:14px 12px}
+@media(min-width:600px){.fields{grid-template-columns:repeat(4,1fr)}}
+.fields.two{grid-template-columns:repeat(2,1fr);max-width:320px}
+.fields.one{grid-template-columns:1fr;max-width:220px}
+.field label{font-family:var(--mono);font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;
+  color:var(--muted);display:block;margin-bottom:5px}
+
+input[type=text]{background:var(--surface2);border:1px solid var(--line);color:var(--bone);
+  font-family:var(--mono);font-size:16px;padding:8px 8px;width:78px;text-align:right;border-radius:0}
+input[type=text]:focus{outline:2px solid var(--bone);outline-offset:1px}
+.wide{width:100%;max-width:120px}
+.nm{width:96px;text-align:left}
+.sgn{display:inline-flex;gap:4px;align-items:stretch}
+.sign{background:var(--surface2);border:1px solid var(--line);color:var(--bone);
+  font-family:var(--mono);font-size:16px;width:34px;padding:0;cursor:pointer;border-radius:0}
+.sign.neg{color:var(--fish);border-color:var(--fish)}
+
+.out{border-top:1px solid var(--line);margin-top:15px;padding-top:14px;
+  display:flex;align-items:baseline;gap:12px;flex-wrap:wrap}
+.big{font-family:var(--cond);font-weight:700;font-size:34px;line-height:1;color:var(--rake)}
+.big.sm{font-size:26px}
+.unit{font-family:var(--mono);font-size:11px;color:var(--muted)}
+
+.slide{margin-bottom:15px}
+.slide:last-child{margin-bottom:0}
+.srow{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:4px}
+.sname{font-family:var(--mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+.sval{font-family:var(--cond);font-weight:700;font-size:20px}
+input[type=range]{width:100%;height:28px;accent-color:var(--reg)}
+
+.kpis{display:grid;grid-template-columns:repeat(2,1fr);gap:1px;background:var(--line);border:1px solid var(--line)}
+@media(min-width:640px){.kpis{grid-template-columns:repeat(4,1fr)}}
+.kpi{background:var(--surface);padding:12px 12px 14px}
+.kl{font-family:var(--mono);font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;
+  color:var(--muted);display:block;margin-bottom:6px}
+.kv{font-family:var(--cond);font-weight:700;font-size:26px;line-height:1}
+.ku{font-family:var(--mono);font-size:10px;color:var(--muted);margin-left:4px;font-weight:400}
+.kn{font-family:var(--mono);font-size:10.5px;color:var(--muted);margin-top:6px;display:block}
+
+.scroll{overflow-x:auto;-webkit-overflow-scrolling:touch}
+table{width:100%;border-collapse:collapse;font-family:var(--mono);font-size:12px}
+th{font-size:9.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:500;
+  text-align:right;padding:0 0 8px 8px;border-bottom:1px solid var(--line);white-space:nowrap}
+th:first-child{text-align:left;padding-left:0}
+td{padding:8px 0 8px 8px;text-align:right;border-bottom:1px solid var(--line);white-space:nowrap}
+td:first-child{text-align:left;padding-left:0}
+.dot{display:inline-block;width:6px;height:6px;margin-left:6px;vertical-align:2px;background:var(--rake)}
+
+.btn{background:none;border:1px solid var(--line);color:var(--muted);font-family:var(--mono);
+  font-size:10px;letter-spacing:.08em;text-transform:uppercase;padding:8px 11px;cursor:pointer;border-radius:0}
+.btn.on{color:var(--ink);background:var(--bone);border-color:var(--bone)}
+.btns{display:flex;gap:6px;flex-wrap:wrap}
+
+.note{font-size:12.5px;color:var(--muted);margin:12px 0 0}
+.note b{color:var(--bone);font-weight:600}
+.formula{font-family:var(--mono);font-size:11px;line-height:1.85;color:var(--muted);
+  background:var(--surface2);border:1px solid var(--line);padding:12px 13px;margin-top:14px;
+  overflow-x:auto;white-space:pre}
+.warn{border-left:2px solid var(--rake);padding:10px 0 10px 12px;font-size:12.5px;color:var(--muted)}
+.warn b{color:var(--rake);font-weight:600}
+.ok{border-left:2px solid var(--reg);padding:10px 0 10px 12px;font-size:12.5px;color:var(--muted)}
+.ok b{color:var(--reg);font-weight:600}
+.curve{background:var(--surface2);border:1px solid var(--line);padding:14px 12px 10px}
+.foot{font-family:var(--mono);font-size:10px;color:var(--muted);text-align:center;
+  margin-top:32px;padding-top:16px;border-top:1px solid var(--line)}
+.foot button{margin-top:10px}
+select{background:var(--surface2);border:1px solid var(--line);color:var(--bone);
+  font-family:var(--mono);font-size:16px;padding:8px;width:100%;border-radius:0;
+  -webkit-appearance:none;appearance:none;
+  background-image:linear-gradient(45deg,transparent 50%,var(--muted) 50%),
+    linear-gradient(135deg,var(--muted) 50%,transparent 50%);
+  background-position:calc(100% - 15px) 18px,calc(100% - 10px) 18px;
+  background-size:5px 5px,5px 5px;background-repeat:no-repeat}
+select:focus{outline:2px solid var(--bone);outline-offset:1px}
+.savebar{display:flex;gap:6px;margin-top:10px;flex-wrap:wrap}
+.savebar input{flex:1;min-width:130px;width:auto;text-align:left}
+.flash{font-family:var(--mono);font-size:10.5px;color:var(--reg);margin-top:8px;min-height:14px}
+</style>
+</head>
+<body>
+<div class="wrap">
+<div id="boot" style="display:none;border:1px solid #C9354A;background:#2A1015;color:#E6E2D8;
+  padding:12px;margin-bottom:16px;font-family:var(--mono);font-size:12px;white-space:pre-wrap"></div>
+
+<header>
+  <h1>Rakefluss</h1>
+  <div class="sub" id="sub">PLO5 · 25/50 · 6-max</div>
+</header>
+
+<!-- SZENARIEN -->
+<section>
+  <span class="lab">Szenarien</span>
+  <div class="panel">
+    <select id="scenSel"><option value="">— gespeichertes Szenario laden —</option></select>
+    <div class="savebar">
+      <input type="text" id="scenName" placeholder="Name, z. B. Ferry Bonus 15k">
+      <button class="btn" id="scenSave">Speichern</button>
+      <button class="btn" id="scenDel">Löschen</button>
+    </div>
+    <div class="flash" id="scenFlash"></div>
+  </div>
+</section>
+
+<!-- STRUKTUR -->
+<section>
+  <span class="lab">Rakestruktur</span>
+  <div class="panel">
+    <div class="fields">
+      <div class="field"><label for="pct">Rake %</label><input type="text" inputmode="decimal" id="pct"></div>
+      <div class="field"><label for="cap">Cap in bb</label><input type="text" inputmode="decimal" id="cap"></div>
+      <div class="field"><label for="flop">Flop gesehen %</label><input type="text" inputmode="decimal" id="flop"></div>
+      <div class="field"><label for="median">Median-Pot bb</label><input type="text" inputmode="decimal" id="median"></div>
+    </div>
+    <div class="out">
+      <span class="big" id="r100">–</span>
+      <span class="unit" id="r100note"></span>
+    </div>
+  </div>
+</section>
+
+<!-- SPIELER -->
+<section>
+  <span class="lab">Spieler · roter Punkt = über der Obergrenze</span>
+  <div class="scroll">
+    <table>
+      <thead><tr>
+        <th>Spieler</th><th>Brutto</th><th>VPIP</th><th>Inv bb/H</th><th>Rolle</th>
+        <th>Rake</th><th>Nach Rake</th><th>Rewards</th><th>Netto</th>
+      </tr></thead>
+      <tbody id="rows"></tbody>
+    </table>
+  </div>
+  <p class="note" id="keyNote"></p>
+</section>
+
+<!-- OBERGRENZE -->
+<section>
+  <span class="lab">Obergrenze Regs · netto nach Rake, ohne Rakeback</span>
+  <div class="panel">
+    <div class="fields one">
+      <div class="field"><label for="ceiling">kein Reg über bb/100</label>
+        <input type="text" inputmode="decimal" id="ceiling"></div>
+    </div>
+    <div class="out">
+      <span class="big sm" id="maxReg">–</span>
+      <span class="unit" id="ceilNote"></span>
+    </div>
+    <div class="btns" id="minCapWrap" style="margin-top:14px;display:none">
+      <button class="btn" id="minCapBtn"></button>
+    </div>
+    <p class="note" id="ceilHint"></p>
+  </div>
+</section>
+
+<!-- REWARDS -->
+<section>
+  <span class="lab">Rewards</span>
+  <div class="panel">
+    <div class="slide">
+      <div class="srow"><span class="sname">Rakeback Regs</span><span class="sval" id="rbRegV" style="color:var(--reg)">0%</span></div>
+      <input type="range" id="rbReg" min="0" max="100" step="5" style="accent-color:var(--reg)">
+    </div>
+    <div class="slide">
+      <div class="srow"><span class="sname">Rakeback Fische</span><span class="sval" id="rbFishV" style="color:var(--fish)">0%</span></div>
+      <input type="range" id="rbFish" min="0" max="100" step="5" style="accent-color:var(--fish)">
+    </div>
+    <div class="slide">
+      <div class="srow"><span class="sname">Verlust-Rebate Fische</span><span class="sval" id="rebateV" style="color:var(--rake)">0%</span></div>
+      <input type="range" id="rebate" min="0" max="100" step="1" style="accent-color:var(--rake)">
+    </div>
+    <div class="btns" style="margin-top:14px">
+      <button class="btn on" data-grp="rebBase" data-val="net">Basis: Verlust nach Rake</button>
+      <button class="btn" data-grp="rebBase" data-val="gross">Basis: Verlust vor Rake</button>
+    </div>
+    <div class="formula" id="rebFormula"></div>
+  </div>
+</section>
+
+<!-- BONUS -->
+<section>
+  <span class="lab" id="bonusLab">Bonus · einsatzbasiertes Freispielen</span>
+  <div class="panel">
+    <div class="fields">
+      <div class="field"><label for="deposit">Einzahlung €</label><input type="text" inputmode="decimal" id="deposit"></div>
+      <div class="field"><label for="bonus">Bonus €</label><input type="text" inputmode="decimal" id="bonus"></div>
+      <div class="field"><label for="wagerX">Wager-Multiplikator</label><input type="text" inputmode="decimal" id="wagerX"></div>
+      <div class="field"><label for="invBB">Invested bb/Hand</label><input type="text" inputmode="decimal" id="invBB"></div>
+    </div>
+
+    <div class="slide" style="margin-top:16px">
+      <div class="srow"><span class="sname">Wager-Multiplikator</span><span class="sval" id="wagerXV">–</span></div>
+      <input type="range" id="wagerXR" min="0.5" max="16" step="0.05">
+      <div style="display:flex;justify-content:space-between;font-family:var(--mono);font-size:10px;color:var(--muted);margin-top:2px">
+        <span>0,5×</span><span id="windowNote"></span><span>16×</span>
+      </div>
+    </div>
+
+    <div class="btns" style="margin-top:14px">
+      <button class="btn on" data-grp="wagerBase" data-val="both">Basis: Einzahlung + Bonus</button>
+      <button class="btn" data-grp="wagerBase" data-val="bonus">Basis: nur Bonus</button>
+    </div>
+
+    <div class="out">
+      <span class="unit" style="margin-right:4px">Brauchbares Fenster</span>
+      <span class="big sm" id="windowV">–</span>
+      <span class="unit" id="windowExp"></span>
+    </div>
+    <div class="formula" id="bonusFormula"></div>
+  </div>
+</section>
+
+<!-- RÜCKWÄRTS -->
+<section>
+  <span class="lab">Rückwärts rechnen · Ziel vorgeben, Parameter ableiten</span>
+  <div class="panel">
+    <div class="btns">
+      <button class="btn on" data-grp="goalMode" data-val="ferry">Whale-Ergebnis</button>
+      <button class="btn" data-grp="goalMode" data-val="you">Dein Ergebnis</button>
+      <button class="btn" data-grp="goalMode" data-val="hands">Hände am Tisch</button>
+      <button class="btn" data-grp="goalMode" data-val="bonus">Bonus lösen</button>
+    </div>
+    <div class="fields one" style="margin-top:14px">
+      <div class="field"><label for="goalVal" id="goalLab">Zielwert in €</label>
+        <span class="sgn"><button class="sign neg" id="goalSign">−</button>
+        <input type="text" inputmode="decimal" id="goalVal" class="wide"></span></div>
+    </div>
+    <div class="out">
+      <span class="big" id="goalOut">–</span>
+      <span class="unit" id="goalExp"></span>
+    </div>
+    <div class="btns" id="applyWrap" style="display:none">
+      <button class="btn" id="applyBtn">Übernehmen</button>
+    </div>
+    <p class="note" id="goalNote"></p>
+  </div>
+</section>
+
+<!-- ERGEBNIS -->
+<section>
+  <span class="lab">Ergebnis</span>
+  <div class="kpis">
+    <div class="kpi"><span class="kl" id="k1l">Erreicht er den Bonus?</span>
+      <span class="kv" id="k1v">–</span><span class="kn" id="k1n"></span></div>
+    <div class="kpi"><span class="kl">Sein Restguthaben</span>
+      <span class="kv" id="k2v">–</span><span class="kn" id="k2n"></span></div>
+    <div class="kpi"><span class="kl" id="k3l">Rake nur von ihm</span>
+      <span class="kv" id="k3v">–</span><span class="kn" id="k3n"></span></div>
+    <div class="kpi"><span class="kl">Dein Ergebnis</span>
+      <span class="kv" id="k4v">–</span><span class="kn" id="k4n"></span></div>
+  </div>
+  <p class="note" id="resNote"></p>
+</section>
+
+<!-- KURVE -->
+<section>
+  <span class="lab" id="curveLab">Hände über Rebate-Satz</span>
+  <div class="curve">
+    <svg viewBox="0 0 600 155" width="100%" style="display:block" id="svg">
+      <line x1="26" x2="574" y1="129" y2="129" stroke="#2A313D"></line>
+      <line x1="26" x2="574" y1="97" y2="97" stroke="#2A313D"></line>
+      <line x1="26" x2="574" y1="65" y2="65" stroke="#2A313D"></line>
+      <line x1="26" x2="574" y1="33" y2="33" stroke="#2A313D"></line>
+      <path id="cpath" fill="none" stroke="#D9A441" stroke-width="2"></path>
+      <line id="cmark" y1="16" y2="129" stroke="#E6E2D8" stroke-dasharray="3 3"></line>
+      <circle id="cdot" r="4" fill="#E6E2D8"></circle>
+      <text x="26" y="148" fill="#828C9D" font-size="10" font-family="monospace">0% Rebate</text>
+      <text x="574" y="148" text-anchor="end" fill="#828C9D" font-size="10" font-family="monospace">100%</text>
+      <text x="26" y="14" fill="#828C9D" font-size="10" font-family="monospace" id="cmax"></text>
+    </svg>
+  </div>
+</section>
+
+<!-- SONSTIGES -->
+<section>
+  <span class="lab">Whale-Tiefe</span>
+  <div class="panel">
+    <div class="fields two">
+      <div class="field"><label for="depth">Tiefe in bb</label><input type="text" inputmode="decimal" id="depth"></div>
+      <div class="field"><label for="hph">Hände je Stunde</label><input type="text" inputmode="decimal" id="hph"></div>
+    </div>
+  </div>
+</section>
+
+<div id="verdict"></div>
+
+<div class="foot">
+  Eingaben werden auf diesem Gerät gespeichert
+  <div class="btns" style="justify-content:center"><button class="btn" id="reset">Auf Startwerte zurücksetzen</button></div>
+</div>
+
+</div>
+
+<script>
+window.addEventListener("error", function(e){
+  var b = document.getElementById("boot");
+  if(b){ b.style.display="block";
+    b.textContent = "Startfehler: " + (e.message||e) +
+      (e.filename?"\nZeile " + e.lineno + ", Spalte " + e.colno : ""); }
+});
+</script>
+<script>
+"use strict";
+const BB = 50;
+
+const DEFAULTS = {
+  players: [
+    { name:"Marek",  gross: 12, vpip:50, inv:0, reg:true  },
+    { name:"Sasha",  gross: 12, vpip:50, inv:0, reg:true  },
+    { name:"Tobi",   gross:  8, vpip:50, inv:0, reg:true  },
+    { name:"Dennis", gross:  8, vpip:52, inv:0, reg:true  },
+    { name:"Kai",    gross:  7, vpip:61, inv:0, reg:true  },
+    { name:"Ferry",  gross:-47, vpip:68, inv:0, reg:false }
+  ],
+  pct:5, cap:2.5, flop:70, median:14,
+  rbReg:0, rbFish:0, rebate:0, rebBase:"net",
+  deposit:10000, bonus:15000, wagerX:4, wagerBase:"both", invBB:0,
+  ceiling:3, depth:250, hph:65,
+  goalMode:"ferry", goalVal:-5000
+};
+
+const NUMKEYS = ["pct","cap","flop","median","rbReg","rbFish","rebate","deposit","bonus",
+  "wagerX","invBB","ceiling","depth","hph","goalVal"];
+
+/* Jede Zahl muss endlich sein. NaN/null/undefined fallen auf den Startwert zurück,
+   sonst bricht ein einziges kaputtes Feld das ganze Rendern ab. */
+function sanitize(o){
+  const d = DEFAULTS;
+  if(!o || typeof o !== "object") o = {};
+  const toNum = (raw, fallback) => {
+    if(raw === null || raw === undefined || raw === "") return fallback;
+    const v = Number(raw);
+    return Number.isFinite(v) ? v : fallback;
+  };
+  NUMKEYS.forEach(k=>{ o[k] = toNum(o[k], d[k]); });
+  if(o.rebBase !== "gross") o.rebBase = "net";
+  if(o.wagerBase !== "bonus") o.wagerBase = "both";
+  if(["ferry","you","hands","bonus"].indexOf(o.goalMode) < 0) o.goalMode = "ferry";
+  if(!Array.isArray(o.players) || o.players.length === 0)
+    o.players = JSON.parse(JSON.stringify(d.players));
+  o.players = o.players.map((p,i)=>{
+    const def = d.players[i] || d.players[0];
+    const q = (p && typeof p === "object") ? p : {};
+    return { name: typeof q.name === "string" && q.name ? q.name : def.name,
+             gross: toNum(q.gross, def.gross), vpip: toNum(q.vpip, def.vpip),
+             inv: Math.max(toNum(q.inv, 0), 0), reg: q.reg !== false };
+  });
+  return o;
+}
+
+let S = load();
+
+function load(){
+  try {
+    const raw = localStorage.getItem("rakefluss");
+    if (raw) return sanitize(Object.assign(JSON.parse(JSON.stringify(DEFAULTS)), JSON.parse(raw)));
+  } catch(e){}
+  return sanitize(JSON.parse(JSON.stringify(DEFAULTS)));
+}
+function save(){
+  try { localStorage.setItem("rakefluss", JSON.stringify(S)); } catch(e){}
+}
+
+/* ── Mathe ───────────────────────────────────────────────── */
+function erf(x){
+  const s = x<0?-1:1, a = Math.abs(x), t = 1/(1+0.3275911*a);
+  const poly = t*(0.254829592+t*(-0.284496736+t*(1.421413741+t*(-1.453152027+t*1.061405429))));
+  return s*(1-poly*Math.exp(-a*a));
+}
+const ncdf = x => 0.5*(1+erf(x/Math.SQRT2));
+
+function tableRake(cap, pct){
+  const sig = 1.0, r = Math.max(pct,0.01)/100;
+  const mu = Math.log(Math.max(S.median,0.5));
+  const meanPot = Math.exp(mu+sig*sig/2);
+  const z = (Math.log(Math.max(cap,0.001)/r)-mu)/sig;
+  const pCap = 1-ncdf(z);
+  const perHand = r*meanPot*ncdf(z-sig)+cap*pCap;
+  return { r100: perHand*(S.flop/100)*100, pCap, perHand, capPot: cap/r, meanPot };
+}
+function capFor(target){
+  let lo=0.01, hi=25;
+  for(let i=0;i<60;i++){ const m=(lo+hi)/2; if(tableRake(m,S.pct).r100<target) lo=m; else hi=m; }
+  return Math.round((lo+hi)/2*100)/100;
+}
+
+function model(rebateRate){
+  const t = tableRake(S.cap, S.pct);
+  const invCount = S.players.filter(p=>p.inv>0).length;
+  const useInv = invCount === S.players.length;
+  const key = p => useInv ? Math.max(p.inv,0.001) : Math.max(p.vpip,0.001);
+  const vSum = S.players.reduce((a,p)=>a+key(p),0);
+  const playersPerPot = S.players.reduce((a,p)=>a+Math.max(p.vpip,0),0)/100;
+
+  const rows = S.players.map(p=>{
+    const share = key(p)/vSum;
+    const rakePaid = t.r100*share;
+    const netRaw = p.gross - rakePaid;
+    const back = rakePaid*((p.reg?S.rbReg:S.rbFish)/100);
+    const afterBack = netRaw + back;
+    const base = S.rebBase==="gross" ? p.gross : afterBack;
+    const reb = (!p.reg && base<0) ? -base*(rebateRate/100) : 0;
+    return Object.assign({},p,{share,rakePaid,netRaw,back,reb,net:afterBack+reb,rewards:back+reb});
+  });
+
+  const paidOut = rows.reduce((a,r)=>a+r.rewards,0);
+  const opNet100 = t.r100 - paidOut;
+  const regs = rows.filter(r=>r.reg);
+  const fish = rows.filter(r=>!r.reg);
+  const pool = fish.length?fish:rows;
+  const whale = pool.reduce((a,b)=>a.gross<b.gross?a:b);
+  const over = regs.filter(r=>r.netRaw>S.ceiling);
+  const maxRegNet = regs.length?Math.max(...regs.map(r=>r.netRaw)):0;
+  const minR = regs.length?Math.max(...regs.map(r=>(r.gross-S.ceiling)/r.share)):0;
+
+  const potAll = (S.flop/100)*t.meanPot + (1-S.flop/100)*3;
+  const stakeEstBB = potAll*whale.share;
+  const measured = S.invBB>0;
+  const stakeBB = measured ? S.invBB : stakeEstBB;
+  const stakeH = stakeBB*BB;
+  const lossH = (-whale.net/100)*BB;
+  const rakeWhaleH = (whale.rakePaid/100)*BB;
+  const rakeTableH = (opNet100/100)*BB;
+
+  const wagerBase = S.wagerBase==="bonus" ? S.bonus : S.deposit+S.bonus;
+  const need = S.wagerX*wagerBase;
+  const hFree = stakeH>0 ? need/stakeH : Infinity;
+  const hBust = lossH>0 ? (S.deposit+S.bonus)/lossH : Infinity;
+  const makes = hFree<=hBust;
+  const hPlay = Math.min(hFree,hBust);
+  const balance = makes ? (S.deposit+S.bonus)-hPlay*lossH : 0;
+  const xMax = lossH>0 ? (S.deposit+S.bonus)/lossH*stakeH/wagerBase : Infinity;
+  const xMin = rakeTableH>0 ? (S.bonus/rakeTableH)*stakeH/wagerBase : Infinity;
+  const handsDepth = whale.net<-0.01 ? S.depth/(-whale.net/100) : Infinity;
+
+  return { t, rows, regs, fish, whale, over, maxRegNet, minR, useInv, invCount, playersPerPot,
+    potAll, stakeEstBB, stakeBB, stakeH, measured, lossH, rakeWhaleH, rakeTableH,
+    opNet100, paidOut, wagerBase, hFree, hBust, makes, hPlay, balance, xMin, xMax,
+    ratio: lossH>0?stakeH/lossH:Infinity, handsDepth,
+    rakeWhale:hPlay*rakeWhaleH, rakeTable:hPlay*rakeTableH, result:hPlay*rakeTableH-S.bonus };
+}
+
+/* ── Formatierung ────────────────────────────────────────── */
+const eur = n => (n<0?"−":"")+"€"+Math.abs(Math.round(n)).toLocaleString("de-DE");
+const sbb = n => Number.isFinite(n) ? (n>=0?"+":"−")+Math.abs(n).toFixed(1) : "–";
+const kh  = n => !isFinite(n) ? "∞" : (n>=10000 ? (n/1000).toFixed(1)+"k" : Math.round(n).toLocaleString("de-DE"));
+const parseNum = v => { const n = parseFloat(String(v).replace("−","-").replace(",",".")); return Number.isFinite(n)?n:0; };
+const fx = (n,d) => Number.isFinite(n) ? n.toFixed(d) : "–";
+
+/* ── Spielertabelle einmalig bauen ───────────────────────── */
+const rowsEl = document.getElementById("rows");
+
+function buildRows(){
+  if(!rowsEl) return;
+  var html = "";
+  for(var i=0;i<S.players.length;i++){
+    html += '<tr>'
+      + '<td><input type="text" class="nm" data-p="'+i+'" data-f="name"></td>'
+      + '<td><span class="sgn"><button class="sign" data-p="'+i+'" data-sign="gross"></button>'
+      + '<input type="text" inputmode="decimal" style="width:52px" data-p="'+i+'" data-f="gross"></span></td>'
+      + '<td><input type="text" inputmode="decimal" style="width:48px" data-p="'+i+'" data-f="vpip"></td>'
+      + '<td><input type="text" inputmode="decimal" style="width:56px" data-p="'+i+'" data-f="inv"></td>'
+      + '<td><button class="btn" data-p="'+i+'" data-role="1"></button></td>'
+      + '<td style="color:var(--rake)" data-o="rake'+i+'"></td>'
+      + '<td data-o="raw'+i+'"></td>'
+      + '<td data-o="rew'+i+'"></td>'
+      + '<td style="font-weight:600" data-o="net'+i+'"></td>'
+      + '</tr>';
+  }
+  rowsEl.innerHTML = html;
+}
+function ensureRows(){
+  if(rowsEl && rowsEl.children.length !== S.players.length) buildRows();
+}
+buildRows();
+
+/* ── Verdrahtung ─────────────────────────────────────────── */
+const $ = id => document.getElementById(id);
+const NUMS = ["pct","cap","flop","median","deposit","bonus","wagerX","invBB","ceiling","depth","hph","goalVal"];
+const RANGES = ["rbReg","rbFish","rebate"];
+
+function fillInputs(){
+  NUMS.forEach(k=>{ const el=$(k); if(el && document.activeElement!==el) el.value = S[k]; });
+  RANGES.forEach(k=>{ $(k).value = S[k]; });
+  const wr = $("wagerXR"); if(document.activeElement!==wr) wr.value = S.wagerX;
+  S.players.forEach((p,i)=>{
+    document.querySelectorAll('[data-p="'+i+'"]').forEach(el=>{
+      const f = el.dataset.f;
+      if (f && document.activeElement!==el) el.value = p[f];
+      if (el.dataset.role) { el.textContent = p.reg?"Reg":"Fisch"; el.classList.toggle("on",p.reg); }
+      if (el.dataset.sign) {
+        el.textContent = p.gross<0?"−":"+";
+        el.classList.toggle("neg", p.gross<0);
+      }
+    });
+  });
+  $("goalSign").textContent = S.goalVal<0?"−":"+";
+  $("goalSign").classList.toggle("neg", S.goalVal<0);
+  $("goalSign").style.display = S.goalMode==="hands" ? "none" : "";
+  document.querySelectorAll("[data-grp]").forEach(b=>{
+    b.classList.toggle("on", S[b.dataset.grp]===b.dataset.val);
+  });
+}
+
+NUMS.forEach(k=>{
+  const el=$(k); if(!el) return;
+  el.addEventListener("focus", e=>e.target.select());
+  el.addEventListener("input", e=>{
+    const neg = S[k]<0 && k==="goalVal";
+    let v = parseNum(e.target.value);
+    if (k==="goalVal" && neg && v>0) v = -v;
+    S[k]=v; render();
+  });
+  el.addEventListener("blur", ()=>{ el.value = S[k]; });
+});
+RANGES.forEach(k=>{ $(k).addEventListener("input", e=>{ S[k]=+e.target.value; render(); }); });
+$("wagerXR").addEventListener("input", e=>{ S.wagerX=+e.target.value; render(); });
+
+rowsEl.addEventListener("input", e=>{
+  const el=e.target, i=el.dataset.p, f=el.dataset.f;
+  if(i===undefined||!f) return;
+  const p = S.players[+i];
+  if(f==="name") p.name = el.value;
+  else {
+    let v = parseNum(el.value);
+    if(f==="gross" && p.gross<0 && v>0) v = -v;
+    p[f]=v;
+  }
+  render();
+});
+rowsEl.addEventListener("focusin", e=>{ if(e.target.tagName==="INPUT") e.target.select(); });
+rowsEl.addEventListener("click", e=>{
+  const b=e.target.closest("button"); if(!b) return;
+  const p=S.players[+b.dataset.p];
+  if(b.dataset.role) p.reg=!p.reg;
+  if(b.dataset.sign) p.gross = -p.gross;
+  render();
+});
+
+document.querySelectorAll("[data-grp]").forEach(b=>{
+  b.addEventListener("click", ()=>{
+    S[b.dataset.grp]=b.dataset.val;
+    if(b.dataset.grp==="goalMode")
+      S.goalVal = b.dataset.val==="hands"?800:b.dataset.val==="you"?10000:-5000;
+    render();
+  });
+});
+$("goalSign").addEventListener("click", ()=>{ S.goalVal = -S.goalVal; render(); });
+$("reset").addEventListener("click", ()=>{
+  if(confirm("Alle Eingaben auf die Startwerte zurücksetzen?")){
+    S = JSON.parse(JSON.stringify(DEFAULTS)); render();
+  }
+});
+/* ── Szenarien ──────────────────────────────────────────── */
+const SKEY = "rakefluss.scenarios";
+function scenAll(){
+  try { return JSON.parse(localStorage.getItem(SKEY) || "{}"); } catch(e){ return {}; }
+}
+function scenWrite(o){
+  try { localStorage.setItem(SKEY, JSON.stringify(o)); return true; } catch(e){ return false; }
+}
+function flash(msg, bad){
+  const f = $("scenFlash");
+  f.textContent = msg;
+  f.style.color = bad ? "var(--rake)" : "var(--reg)";
+  clearTimeout(flash._t);
+  flash._t = setTimeout(()=>{ f.textContent=""; }, 2600);
+}
+let scenSig = "";
+function scenRefresh(){
+  const all = scenAll();
+  const names = Object.keys(all).sort((a,b)=>a.localeCompare(b,"de"));
+  const sig = names.join("|");
+  if (sig === scenSig) return;
+  scenSig = sig;
+  const sel = $("scenSel"), keep = sel.value;
+  sel.innerHTML = '<option value="">— gespeichertes Szenario laden —</option>';
+  names.forEach(n=>{
+    const o = document.createElement("option");
+    o.value = n; o.textContent = n;
+    sel.appendChild(o);
+  });
+  if (names.indexOf(keep) >= 0) sel.value = keep;
+}
+$("scenSave").addEventListener("click", ()=>{
+  const name = $("scenName").value.trim();
+  if(!name){ flash("Erst einen Namen eingeben.", true); return; }
+  const all = scenAll();
+  const exists = Object.prototype.hasOwnProperty.call(all, name);
+  if(exists && !confirm('"'+name+'" überschreiben?')) return;
+  all[name] = JSON.parse(JSON.stringify(S));
+  if(scenWrite(all)){
+    scenSig = "";
+    scenRefresh();
+    $("scenSel").value = name;
+    flash(exists ? '"'+name+'" überschrieben.' : '"'+name+'" gespeichert.');
+  } else {
+    flash("Speichern nicht möglich — Browser blockiert den Speicher.", true);
+  }
+});
+$("scenSel").addEventListener("change", e=>{
+  const name = e.target.value;
+  if(!name) return;
+  const all = scenAll();
+  if(!all[name]) return;
+  S = Object.assign(JSON.parse(JSON.stringify(DEFAULTS)), JSON.parse(JSON.stringify(all[name])));
+  $("scenName").value = name;
+  render();
+  flash('"'+name+'" geladen.');
+});
+$("scenDel").addEventListener("click", ()=>{
+  const name = $("scenSel").value || $("scenName").value.trim();
+  if(!name){ flash("Kein Szenario ausgewählt.", true); return; }
+  const all = scenAll();
+  if(!all[name]){ flash('"'+name+'" gibt es nicht.', true); return; }
+  if(!confirm('"'+name+'" wirklich löschen?')) return;
+  delete all[name];
+  scenWrite(all);
+  scenSig = "";
+  $("scenSel").value = "";
+  scenRefresh();
+  flash('"'+name+'" gelöscht.');
+});
+
+$("minCapBtn").addEventListener("click", ()=>{ S.cap = capFor(model(S.rebate).minR); render(); });
+
+/* ── Zeichnen ────────────────────────────────────────────── */
+function render(){
+  try { draw(); }
+  catch(err){
+    const v = $("verdict");
+    v.innerHTML = '<div class="warn"><b>Fehler beim Berechnen.</b> '+
+      String(err && err.message || err)+
+      ' — tipp unten auf „Auf Startwerte zurücksetzen".</div>';
+    if(window.console) console.error(err);
+  }
+}
+
+function draw(){
+  S = sanitize(S);
+  ensureRows();
+  const m = model(S.rebate);
+  const base = model(0);
+  save();
+  fillInputs();
+  scenRefresh();
+  const W = m.whale.name;
+
+  $("sub").textContent = "PLO5 · 25/50 · 6-max · Whale: "+W;
+  $("bonusLab").textContent = "Bonus für "+W+" · einsatzbasiertes Freispielen";
+
+  /* Spielerzeilen */
+  const cell = (tag,i) => rowsEl ? rowsEl.querySelector('[data-o="'+tag+i+'"]') : null;
+  m.rows.forEach((r,i)=>{
+    const hit = r.reg && r.netRaw>S.ceiling;
+    const c1 = cell("rake",i); if(c1) c1.textContent = "−"+fx(r.rakePaid,1);
+    const raw = cell("raw",i);
+    if(raw){ raw.innerHTML = sbb(r.netRaw)+(hit?'<i class="dot"></i>':"");
+             raw.style.color = hit?"var(--rake)":"var(--muted)"; }
+    const rew = cell("rew",i);
+    if(rew){ rew.textContent = r.rewards>0?"+"+fx(r.rewards,1):"—";
+             rew.style.color = r.rewards>0?"var(--fish)":"#3A424F"; }
+    const net = cell("net",i);
+    if(net){ net.textContent = sbb(r.net);
+             net.style.color = r.net>=0?"var(--reg)":"var(--fish)"; }
+  });
+
+  $("keyNote").innerHTML =
+    "Rake wird nach <b>"+(m.useInv?"gemessenem Invested-Anteil":"VPIP")+"</b> verteilt. "+
+    (!m.useInv && m.invCount>0
+      ? "<b style='color:var(--fish)'>"+m.invCount+" von "+m.rows.length+" eingetragen</b> — der Invested-Schlüssel greift erst, wenn alle einen Wert haben. "
+      : "")+
+    (!m.useInv ? "VPIP misst nur, wie oft jemand einsteigt, nicht wie viel Geld er reinschiebt. " : "")+
+    "Die VPIPs ergeben <b>"+fx(m.playersPerPot,2)+" Spieler pro Pot</b>"+
+    (m.playersPerPot>2.5
+      ? " — stark multiway. Ein Median-Pot von "+S.median+" bb ist dafür vermutlich zu niedrig."
+      : ", das passt zum Median-Pot von "+S.median+" bb.");
+
+  /* Struktur */
+  $("r100").textContent = m.t.r100.toFixed(1);
+  $("r100note").innerHTML = "bb/100 brutto am Tisch<br>Cap greift ab "+fx(m.t.capPot,0)+
+    " bb (€"+Math.round(m.t.capPot*BB).toLocaleString("de-DE")+") · in "+(m.t.pCap*100).toFixed(0)+"% der Hände";
+
+  /* Obergrenze */
+  const bestReg = m.regs.length ? m.regs.reduce((a,b)=>a.netRaw>b.netRaw?a:b) : null;
+  $("maxReg").textContent = fx(m.maxRegNet,1);
+  $("maxReg").style.color = m.over.length?"var(--rake)":"var(--reg)";
+  $("ceilNote").innerHTML = "bester Reg"+(bestReg?" ("+bestReg.name+")":"")+"<br>"+
+    (m.over.length ? m.over.length+" über der Grenze" : "alle unter der Grenze");
+  const showMin = m.over.length>0 && m.minR>0;
+  $("minCapWrap").style.display = showMin?"":"none";
+  if(showMin) $("minCapBtn").textContent = "Cap auf "+capFor(m.minR).toFixed(2)+" bb setzen";
+  $("ceilHint").innerHTML = "Die Grenze legt einen <b>Mindest</b>-Rake fest: mindestens "+
+    fx(m.minR,1)+" bb/100 am Tisch. Nach unten ist alles offen — mehr Rake drückt die Regs weiter, "+
+    "und den Überschuss kannst du per Rebate an "+W+" zurückgeben.";
+
+  /* Rewards */
+  $("rbRegV").textContent = S.rbReg+"%";
+  $("rbFishV").textContent = S.rbFish+"%";
+  $("rebateV").textContent = S.rebate+"%";
+  $("rebFormula").textContent =
+    "Rake gezahlt  = "+m.t.r100.toFixed(1)+" × Anteil\n"+
+    "Netto n. Rake = Brutto − Rake gezahlt\n"+
+    "Rakeback      = Rake gezahlt × Satz\n"+
+    "Rebate-Basis  = "+(S.rebBase==="gross"?"Brutto-Verlust (vor Rake)":"Netto nach Rake + Rakeback")+"\n"+
+    "Rebate        = −Basis × "+S.rebate+"%   (nur Fische, nur wenn negativ)\n\n"+
+    W+": "+fx(m.whale.gross,1)+" − "+fx(m.whale.rakePaid,1)+
+    " + "+fx(m.whale.rewards,1)+" = "+sbb(m.whale.net)+" bb/100";
+
+  /* Bonus */
+  const valid = m.xMin < m.xMax;
+  $("wagerXV").textContent = fx(S.wagerX,2)+"×";
+  $("wagerXV").style.color = (!valid||S.wagerX<m.xMin||S.wagerX>m.xMax)?"var(--rake)":"var(--reg)";
+  $("wagerXR").style.accentColor = (!valid||S.wagerX<m.xMin||S.wagerX>m.xMax)?"var(--rake)":"var(--reg)";
+  $("windowNote").textContent = valid
+    ? "Fenster "+fx(m.xMin,2)+"–"+(isFinite(m.xMax)?fx(m.xMax,2):"∞")+
+      " · Position "+Math.round((S.wagerX-m.xMin)/(m.xMax-m.xMin)*100)+"%"
+    : "kein gültiges Fenster";
+  $("windowV").textContent = valid ? fx(m.xMin,2)+" – "+(isFinite(m.xMax)?fx(m.xMax,2):"∞") : "keins";
+  $("windowV").style.color = valid?"var(--reg)":"var(--rake)";
+  $("windowExp").innerHTML = valid
+    ? "unter "+fx(m.xMin,2)+" zahlst du drauf<br>über "+(isFinite(m.xMax)?fx(m.xMax,2):"∞")+" schafft er es nie"
+    : "Untergrenze liegt über der Obergrenze.<br>Senk den Bonus oder erhöhe Invested bb/Hand.";
+  $("bonusFormula").textContent =
+    "Invested je Hand  "+fx(m.stakeBB,2)+" bb = "+fx(m.stakeH,0)+" €  "+
+      (m.measured?"(eingetragen)":"(geschätzt: Pot "+fx(m.potAll,1)+" bb × "+(m.whale.share*100).toFixed(1)+"%)")+"\n"+
+    "Verlust je Hand   "+(m.lossH/BB).toFixed(2)+" bb = "+fx(m.lossH,0)+" €\n"+
+    "Verhältnis        "+(isFinite(m.ratio)?fx(m.ratio,2):"∞")+"   ← maximaler Multiplikator\n"+
+    "Umsatzziel        "+eur(S.wagerX*m.wagerBase)+"\n"+
+    "Hände dafür       "+kh(m.hFree)+"  ·  Hände bis Bust "+kh(m.hBust);
+
+  /* Rückwärts */
+  $("goalLab").textContent = S.goalMode==="hands" ? "Zielwert in Händen" : "Zielwert in €";
+  const g = solveGoal(m);
+  if(!g){ $("goalOut").textContent="–"; $("goalExp").textContent=""; $("applyWrap").style.display="none"; $("goalNote").textContent=""; }
+  else {
+    $("goalOut").textContent = g.ok ? (g.solves==="bonus"?eur(g.value):fx(g.value,2)+"×") : "unmöglich";
+    $("goalOut").style.color = g.ok?"var(--reg)":"var(--rake)";
+    $("goalExp").innerHTML = (g.solves==="bonus"?"nötiger Bonus":"nötiger Wager-Multiplikator")+"<br>damit "+g.label;
+    $("applyWrap").style.display = g.ok?"":"none";
+    $("applyBtn").onclick = ()=>{
+      if(g.solves==="bonus") S.bonus = Math.round(g.value/100)*100;
+      else S.wagerX = Math.round(g.value*100)/100;
+      render();
+    };
+    $("goalNote").innerHTML = g.ok
+      ? W+" spielt dafür "+kh(g.hands)+" Hände von "+kh(m.hBust)+" möglichen."+
+        (g.solves==="X" && valid && (g.value<m.xMin||g.value>m.xMax)
+          ? " <b style='color:var(--fish)'>Achtung:</b> außerhalb des Fensters — "+
+            (g.value<m.xMin?"du zahlst dabei drauf.":"er ist vorher pleite.")
+          : "")
+      : "Nicht erreichbar. "+W+" ist nach "+kh(m.hBust)+" Händen pleite. Erhöhe den Bonus, "+
+        "senk den Rake, oder gib ihm ein Rebate.";
+  }
+
+  /* KPIs */
+  $("k1v").textContent = m.makes?"Ja":"Nein";
+  $("k1v").style.color = m.makes?"var(--reg)":"var(--rake)";
+  $("k1n").textContent = m.makes ? "nach "+kh(m.hFree)+" Händen" : "pleite nach "+kh(m.hBust);
+  $("k2v").textContent = eur(m.balance);
+  $("k2v").style.color = m.balance>S.deposit?"var(--rake)":"var(--fish)";
+  $("k2n").textContent = m.balance>S.deposit
+    ? "er geht "+eur(m.balance-S.deposit)+" im Plus raus"
+    : "Verlust "+eur(S.deposit-m.balance);
+  $("k3v").textContent = eur(m.rakeWhale);
+  $("k3n").textContent = "gegen "+eur(S.bonus)+" Bonus";
+  $("k4v").textContent = eur(m.result);
+  $("k4v").style.color = m.result>0?"var(--reg)":"var(--rake)";
+  $("k4n").textContent = "ganzer Tisch minus Bonus";
+  $("resNote").innerHTML = (m.rakeWhale<S.bonus
+    ? "Sein eigener Rake deckt den Bonus nicht — die Differenz von "+eur(S.bonus-m.rakeWhale)+
+      " zahlen die Regs, die wegen ihm am Tisch sitzen. " : "")+
+    "Bei "+S.hph+" Händen je Stunde sind "+kh(m.hPlay)+" Hände rund "+
+    (m.hPlay/S.hph).toFixed(1)+" Stunden.";
+
+  /* Kurve */
+  const pts=[];
+  for(let r=0;r<=100;r+=2){
+    const mm = model(r);
+    const h = mm.whale.net<-0.01 ? S.depth/(-mm.whale.net/100) : null;
+    pts.push({r,h});
+  }
+  const good = pts.filter(p=>p.h);
+  const maxH = Math.max(...good.map(p=>p.h), 500);
+  const cx = r => 26 + r/100*548;
+  const cy = h => 129 - Math.min(h,maxH)/maxH*96;
+  $("cpath").setAttribute("d", good.map((p,i)=>(i?"L":"M")+cx(p.r).toFixed(1)+","+cy(p.h).toFixed(1)).join(" "));
+  $("cmark").setAttribute("x1",cx(S.rebate)); $("cmark").setAttribute("x2",cx(S.rebate));
+  const cur = isFinite(m.handsDepth)?m.handsDepth:null;
+  $("cdot").style.display = cur?"":"none";
+  if(cur){ $("cdot").setAttribute("cx",cx(S.rebate)); $("cdot").setAttribute("cy",cy(cur)); }
+  $("cmax").textContent = kh(maxH)+" Hände";
+  $("curveLab").textContent = "Hände, die "+W+" für "+S.depth+" bb braucht · über den Rebate-Satz";
+
+  /* Fazit */
+  const v = $("verdict");
+  if(m.opNet100<=0)
+    v.innerHTML = '<div class="warn"><b>Du zahlst drauf.</b> Rewards '+fx(m.paidOut,1)+
+      ' bb/100 gegen Rake '+m.t.r100.toFixed(1)+' bb/100.</div>';
+  else if(m.over.length)
+    v.innerHTML = '<div class="warn"><b>'+m.over.length+' Reg'+(m.over.length>1?"s":"")+
+      ' über '+S.ceiling+' bb/100.</b> '+m.over.map(r=>r.name).join(", ")+
+      ' — der Button oben setzt den Cap auf den Mindestwert.</div>';
+  else
+    v.innerHTML = '<div class="ok"><b>Kein Reg über '+S.ceiling+' bb/100.</b> '+W+' braucht '+
+      kh(m.handsDepth)+' Hände für seine '+S.depth+' bb, und dir bleiben '+
+      m.opNet100.toFixed(1)+' bb/100.</div>';
+}
+
+function solveGoal(m){
+  if(!(m.lossH>0)||!(m.stakeH>0)) return null;
+  const k = m.lossH/m.stakeH;
+  if(S.goalMode==="bonus"){
+    const b = (S.goalVal + S.wagerX*S.deposit*k)/(1 - S.wagerX*k);
+    const wb = S.wagerBase==="bonus"?b:S.deposit+b;
+    return { solves:"bonus", value:b, label:m.whale.name+" endet bei "+eur(S.goalVal),
+             ok: b>0 && S.wagerX*k<1, hands: b>0 ? S.wagerX*wb/m.stakeH : 0 };
+  }
+  let hands, label;
+  if(S.goalMode==="ferry"){ hands=(S.bonus-S.goalVal)/m.lossH; label=m.whale.name+" endet bei "+eur(S.goalVal); }
+  else if(S.goalMode==="you"){ hands=(S.goalVal+S.bonus)/m.rakeTableH; label="du machst "+eur(S.goalVal); }
+  else { hands=S.goalVal; label=Math.round(S.goalVal).toLocaleString("de-DE")+" Hände"; }
+  const X = hands*m.stakeH/m.wagerBase;
+  return { solves:"X", value:X, label, hands, ok: hands>0 && hands<=m.hBust+0.5 && X>0 };
+}
+
+render();
+</script>
+</body>
+</html>
