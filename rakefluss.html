@@ -214,46 +214,26 @@ select:focus{outline:2px solid var(--bone);outline-offset:1px}
 
 <!-- BONUS -->
 <section>
-  <span class="lab" id="bonusLab">Bonus · einsatzbasiertes Freispielen</span>
+  <span class="lab">Bonus · wer bekommt einen?</span>
   <div class="panel">
-    <div class="fields">
-      <div class="field"><label for="deposit">Einzahlung €</label><input type="text" inputmode="decimal" id="deposit"></div>
-      <div class="field"><label for="bonus">Bonus €</label><input type="text" inputmode="decimal" id="bonus"></div>
-      <div class="field"><label for="wagerX">Wager-Multiplikator</label><input type="text" inputmode="decimal" id="wagerX"></div>
-      <div class="field"><label for="invBB">Invested bb/Hand</label><input type="text" inputmode="decimal" id="invBB"></div>
-    </div>
-
-    <div class="slide" style="margin-top:16px">
-      <div class="srow"><span class="sname">Wager-Multiplikator</span><span class="sval" id="wagerXV">–</span></div>
-      <input type="range" id="wagerXR" min="0.5" max="16" step="0.05">
-      <div style="display:flex;justify-content:space-between;font-family:var(--mono);font-size:10px;color:var(--muted);margin-top:2px">
-        <span>0,5×</span><span id="windowNote"></span><span>16×</span>
-      </div>
-    </div>
-
-    <div class="btns" style="margin-top:14px">
+    <div class="btns" id="bonusPick"></div>
+    <div class="btns" style="margin-top:12px">
       <button class="btn on" data-grp="wagerBase" data-val="both">Basis: Einzahlung + Bonus</button>
       <button class="btn" data-grp="wagerBase" data-val="bonus">Basis: nur Bonus</button>
     </div>
-
-    <div class="out">
-      <span class="unit" style="margin-right:4px">Brauchbares Fenster</span>
-      <span class="big sm" id="windowV">–</span>
-      <span class="unit" id="windowExp"></span>
-    </div>
-    <div class="formula" id="bonusFormula"></div>
+    <p class="note" id="payoutNote"></p>
   </div>
+  <div id="bonusBlocks"></div>
 </section>
 
 <!-- RÜCKWÄRTS -->
 <section>
   <span class="lab">Rückwärts rechnen · Ziel vorgeben, Parameter ableiten</span>
   <div class="panel">
+    <div class="btns" id="goalPick" style="margin-bottom:10px"></div>
     <div class="btns">
-      <button class="btn on" data-grp="goalMode" data-val="ferry">Whale-Ergebnis</button>
+      <button class="btn on" data-grp="goalMode" data-val="ferry">Sein Ergebnis</button>
       <button class="btn" data-grp="goalMode" data-val="you">Dein Ergebnis</button>
-      <button class="btn" data-grp="goalMode" data-val="hands">Hände am Tisch</button>
-      <button class="btn" data-grp="goalMode" data-val="bonus">Bonus lösen</button>
     </div>
     <div class="fields one" style="margin-top:14px">
       <div class="field"><label for="goalVal" id="goalLab">Zielwert in €</label>
@@ -273,16 +253,17 @@ select:focus{outline:2px solid var(--bone);outline-offset:1px}
 
 <!-- ERGEBNIS -->
 <section>
-  <span class="lab">Ergebnis</span>
-  <div class="kpis">
-    <div class="kpi"><span class="kl" id="k1l">Erreicht er den Bonus?</span>
-      <span class="kv" id="k1v">–</span><span class="kn" id="k1n"></span></div>
-    <div class="kpi"><span class="kl">Sein Restguthaben</span>
-      <span class="kv" id="k2v">–</span><span class="kn" id="k2n"></span></div>
-    <div class="kpi"><span class="kl" id="k3l">Rake nur von ihm</span>
-      <span class="kv" id="k3v">–</span><span class="kn" id="k3n"></span></div>
+  <span class="lab">Ergebnis je Bonus</span>
+  <div id="bonusResults"></div>
+  <div class="kpis" style="margin-top:16px">
+    <div class="kpi"><span class="kl">Tischdauer</span>
+      <span class="kv" id="kH">–</span><span class="kn" id="kHn"></span></div>
+    <div class="kpi"><span class="kl">Rake gesamt</span>
+      <span class="kv" id="kR">–</span><span class="kn" id="kRn"></span></div>
+    <div class="kpi"><span class="kl">Boni gesamt</span>
+      <span class="kv" id="kB">–</span><span class="kn" id="kBn"></span></div>
     <div class="kpi"><span class="kl">Dein Ergebnis</span>
-      <span class="kv" id="k4v">–</span><span class="kn" id="k4n"></span></div>
+      <span class="kv" id="kE">–</span><span class="kn">Rake minus Boni</span></div>
   </div>
   <p class="note" id="resNote"></p>
 </section>
@@ -340,22 +321,21 @@ const BB = 50;
 
 const DEFAULTS = {
   players: [
-    { name:"Marek",  gross: 12, vpip:50, inv:0, reg:true  },
-    { name:"Sasha",  gross: 12, vpip:50, inv:0, reg:true  },
-    { name:"Tobi",   gross:  8, vpip:50, inv:0, reg:true  },
-    { name:"Dennis", gross:  8, vpip:52, inv:0, reg:true  },
-    { name:"Kai",    gross:  7, vpip:61, inv:0, reg:true  },
-    { name:"Ferry",  gross:-47, vpip:68, inv:0, reg:false }
+    { name:"Marek",  gross: 12, vpip:50, inv:0, reg:true,  bon:false, dep:10000, amt:5000,  wx:4, hands:1000 },
+    { name:"Sasha",  gross: 12, vpip:50, inv:0, reg:true,  bon:false, dep:10000, amt:5000,  wx:4, stay:'bust', stayH:1000 },
+    { name:"Tobi",   gross:  8, vpip:50, inv:0, reg:true,  bon:false, dep:10000, amt:5000,  wx:4, stay:'bust', stayH:1000 },
+    { name:"Dennis", gross:  8, vpip:52, inv:0, reg:true,  bon:false, dep:10000, amt:5000,  wx:4, stay:'bust', stayH:1000 },
+    { name:"Kai",    gross:  7, vpip:61, inv:0, reg:true,  bon:false, dep:10000, amt:5000,  wx:4, stay:'bust', stayH:1000 },
+    { name:"Ferry",  gross:-47, vpip:68, inv:0, reg:false, bon:true,  dep:10000, amt:15000, wx:4, stay:'bust', stayH:1000 }
   ],
   pct:5, cap:2.5, flop:70, median:14,
   rbReg:0, rbFish:0, rebate:0, rebBase:"net",
-  deposit:10000, bonus:15000, wagerX:4, wagerBase:"both", invBB:0,
+  wagerBase:"both",
   ceiling:3, depth:250, hph:65,
-  goalMode:"ferry", goalVal:-5000
+  goalMode:"ferry", goalVal:-5000, goalWho:5
 };
 
-const NUMKEYS = ["pct","cap","flop","median","rbReg","rbFish","rebate","deposit","bonus",
-  "wagerX","invBB","ceiling","depth","hph","goalVal"];
+const NUMKEYS = ["pct","cap","flop","median","rbReg","rbFish","rebate","ceiling","depth","hph","goalVal"];
 
 /* Jede Zahl muss endlich sein. NaN/null/undefined fallen auf den Startwert zurück,
    sonst bricht ein einziges kaputtes Feld das ganze Rendern ab. */
@@ -370,7 +350,8 @@ function sanitize(o){
   NUMKEYS.forEach(k=>{ o[k] = toNum(o[k], d[k]); });
   if(o.rebBase !== "gross") o.rebBase = "net";
   if(o.wagerBase !== "bonus") o.wagerBase = "both";
-  if(["ferry","you","hands","bonus"].indexOf(o.goalMode) < 0) o.goalMode = "ferry";
+  if(["ferry","you"].indexOf(o.goalMode) < 0) o.goalMode = "ferry";
+  o.goalWho = Number.isFinite(Number(o.goalWho)) ? Math.max(0,Math.min(5,Number(o.goalWho))) : 5;
   if(!Array.isArray(o.players) || o.players.length === 0)
     o.players = JSON.parse(JSON.stringify(d.players));
   o.players = o.players.map((p,i)=>{
@@ -378,7 +359,12 @@ function sanitize(o){
     const q = (p && typeof p === "object") ? p : {};
     return { name: typeof q.name === "string" && q.name ? q.name : def.name,
              gross: toNum(q.gross, def.gross), vpip: toNum(q.vpip, def.vpip),
-             inv: Math.max(toNum(q.inv, 0), 0), reg: q.reg !== false };
+             inv: Math.max(toNum(q.inv, 0), 0), reg: q.reg !== false,
+             bon: q.bon === true,
+             dep: Math.max(toNum(q.dep, def.dep), 0),
+             amt: Math.max(toNum(q.amt, def.amt), 0),
+             wx:  Math.max(toNum(q.wx,  def.wx), 0.01),
+             hands: Math.max(toNum(q.hands, 1000), 1) };
   });
   return o;
 }
@@ -449,34 +435,63 @@ function model(rebateRate){
   const minR = regs.length?Math.max(...regs.map(r=>(r.gross-S.ceiling)/r.share)):0;
 
   const potAll = (S.flop/100)*t.meanPot + (1-S.flop/100)*3;
-  const stakeEstBB = potAll*whale.share;
-  const measured = S.invBB>0;
-  const stakeBB = measured ? S.invBB : stakeEstBB;
-  const stakeH = stakeBB*BB;
-  const lossH = (-whale.net/100)*BB;
-  const rakeWhaleH = (whale.rakePaid/100)*BB;
-  const rakeTableH = (opNet100/100)*BB;
-
-  const wagerBase = S.wagerBase==="bonus" ? S.bonus : S.deposit+S.bonus;
-  const need = S.wagerX*wagerBase;
-  const hFree = stakeH>0 ? need/stakeH : Infinity;
-  const hBust = lossH>0 ? (S.deposit+S.bonus)/lossH : Infinity;
-  const makes = hFree<=hBust;
-  const hPlay = Math.min(hFree,hBust);
-  const balance = makes ? (S.deposit+S.bonus)-hPlay*lossH : 0;
-  const xMax = lossH>0 ? (S.deposit+S.bonus)/lossH*stakeH/wagerBase : Infinity;
-  const xMin = rakeTableH>0 ? (S.bonus/rakeTableH)*stakeH/wagerBase : Infinity;
+  const rakeTableH = (opNet100/100)*BB;              // Netto-Rake je Hand, ganzer Tisch
   const handsDepth = whale.net<-0.01 ? S.depth/(-whale.net/100) : Infinity;
 
+  // Je Spieler die Bonusrechnung — jeder hat seine eigene Zeitachse
+  rows.forEach(function(r){
+    r.rakeH   = (r.rakePaid/100)*BB;                 // sein Rakebeitrag je Hand
+    r.stakeEstBB = potAll*r.share;
+    r.measured   = r.inv>0;
+    r.stakeBB = r.measured ? r.inv : r.stakeEstBB;
+    r.stakeH  = r.stakeBB*BB;
+    r.lossH   = (-r.net/100)*BB;
+    r.wBase   = S.wagerBase==="bonus" ? r.amt : r.dep + r.amt;
+    r.hFree   = r.stakeH>0 ? (r.wx*r.wBase)/r.stakeH : Infinity;
+    r.hBust   = r.lossH>0  ? (r.dep+r.amt)/r.lossH    : Infinity;
+    r.makes   = r.hFree <= r.hBust;
+    // Die Handzahl gibst du vor; mehr als bis zum Bust geht nicht
+    r.hPlay    = Math.min(r.hands, r.hBust);
+    r.overBust = r.hands > r.hBust + 0.5;
+    r.freed   = r.hFree <= r.hPlay;                  // hat er es im Sitzen geschafft?
+    r.balance = Math.max((r.dep+r.amt) - r.hPlay*r.lossH, 0);   // Chips am Tisch
+    r.wagered = Number.isFinite(r.hPlay) ? r.hPlay*r.stakeH : 0;
+    // Auszahlbar: bei erfüllter Bedingung alles, sonst je nach Regel
+    // Gewagertes schaltet frei, höchstens bis zur eigenen Einzahlung.
+    // Erst mit erfüllter Bonusbedingung wird auch der Bonus frei.
+    r.unlocked = Math.min(r.wagered, r.dep);
+    r.cashOut  = r.freed ? r.balance : Math.min(r.balance, r.unlocked);
+    r.own     = r.cashOut - r.dep;                   // sein Ergebnis
+    r.xMax    = r.lossH>0 && r.wBase>0 ? (r.dep+r.amt)/r.lossH*r.stakeH/r.wBase : Infinity;
+    r.xMin    = rakeTableH>0 && r.wBase>0 ? (r.amt/rakeTableH)*r.stakeH/r.wBase : Infinity;
+    r.ratio   = r.lossH>0 ? r.stakeH/r.lossH : Infinity;
+    r.rakeOwn = r.hPlay*r.rakeH;
+  });
+
+  const bonused = rows.filter(function(r){ return r.bon; });
+  const bonusSum = bonused.reduce(function(a,r){ return a+r.amt; },0);
+  // Tischdauer: bis der letzte Bonusspieler durch ist
+  const H = bonused.length
+    ? Math.max.apply(null, bonused.map(function(r){ return Number.isFinite(r.hPlay)?r.hPlay:0; }))
+    : (Number.isFinite(handsDepth)?handsDepth:0);
+  // Rake zählt je Spieler nur solange er sitzt
+  const rakeTotal = rows.reduce(function(a,r){
+    const h = r.bon ? Math.min(r.hPlay,H) : H;
+    return a + (Number.isFinite(h)?h:0)*r.rakeH;
+  },0);
+  const rewardCost = rows.reduce(function(a,r){
+    const h = r.bon ? Math.min(r.hPlay,H) : H;
+    return a + (Number.isFinite(h)?h:0)*(r.rewards/100)*BB;
+  },0);
+  const result = rakeTotal - bonusSum;
+
   return { t, rows, regs, fish, whale, over, maxRegNet, minR, useInv, invCount, playersPerPot,
-    potAll, stakeEstBB, stakeBB, stakeH, measured, lossH, rakeWhaleH, rakeTableH,
-    opNet100, paidOut, wagerBase, hFree, hBust, makes, hPlay, balance, xMin, xMax,
-    ratio: lossH>0?stakeH/lossH:Infinity, handsDepth,
-    rakeWhale:hPlay*rakeWhaleH, rakeTable:hPlay*rakeTableH, result:hPlay*rakeTableH-S.bonus };
+    potAll, opNet100, paidOut, rakeTableH, handsDepth,
+    bonused, bonusSum, H, rakeTotal, rewardCost, result };
 }
 
 /* ── Formatierung ────────────────────────────────────────── */
-const eur = n => (n<0?"−":"")+"€"+Math.abs(Math.round(n)).toLocaleString("de-DE");
+const eur = n => Number.isFinite(n) ? (n<0?"−":"")+"€"+Math.abs(Math.round(n)).toLocaleString("de-DE") : "–";
 const sbb = n => Number.isFinite(n) ? (n>=0?"+":"−")+Math.abs(n).toFixed(1) : "–";
 const kh  = n => !isFinite(n) ? "∞" : (n>=10000 ? (n/1000).toFixed(1)+"k" : Math.round(n).toLocaleString("de-DE"));
 const parseNum = v => { const n = parseFloat(String(v).replace("−","-").replace(",",".")); return Number.isFinite(n)?n:0; };
@@ -517,7 +532,7 @@ const RANGES = ["rbReg","rbFish","rebate"];
 function fillInputs(){
   NUMS.forEach(k=>{ const el=$(k); if(el && document.activeElement!==el) el.value = S[k]; });
   RANGES.forEach(k=>{ $(k).value = S[k]; });
-  const wr = $("wagerXR"); if(document.activeElement!==wr) wr.value = S.wagerX;
+
   S.players.forEach((p,i)=>{
     document.querySelectorAll('[data-p="'+i+'"]').forEach(el=>{
       const f = el.dataset.f;
@@ -549,7 +564,6 @@ NUMS.forEach(k=>{
   el.addEventListener("blur", ()=>{ el.value = S[k]; });
 });
 RANGES.forEach(k=>{ $(k).addEventListener("input", e=>{ S[k]=+e.target.value; render(); }); });
-$("wagerXR").addEventListener("input", e=>{ S.wagerX=+e.target.value; render(); });
 
 rowsEl.addEventListener("input", e=>{
   const el=e.target, i=el.dataset.p, f=el.dataset.f;
@@ -575,17 +589,95 @@ rowsEl.addEventListener("click", e=>{
 document.querySelectorAll("[data-grp]").forEach(b=>{
   b.addEventListener("click", ()=>{
     S[b.dataset.grp]=b.dataset.val;
-    if(b.dataset.grp==="goalMode")
-      S.goalVal = b.dataset.val==="hands"?800:b.dataset.val==="you"?10000:-5000;
+    if(b.dataset.grp==="goalMode") S.goalVal = b.dataset.val==="you" ? 10000 : -20000;
     render();
   });
 });
+document.addEventListener("click", function(e){
+  const b = e.target.closest && e.target.closest("button");
+  if(!b) return;
+  if(b.dataset.bonpick !== undefined){
+    S.players[+b.dataset.bonpick].bon = !S.players[+b.dataset.bonpick].bon;
+    const on = S.players.filter(function(p){return p.bon;});
+    if(on.length && S.players.indexOf(on[0])>=0 && !S.players[S.goalWho].bon)
+      S.goalWho = S.players.indexOf(on[0]);
+    render();
+  }
+  if(b.dataset.goalwho !== undefined){ S.goalWho = +b.dataset.goalwho; render(); }
+
+});
+document.addEventListener("input", function(e){
+  const el = e.target;
+  if(el.dataset && el.dataset.b !== undefined && el.dataset.bf){
+    S.players[+el.dataset.b][el.dataset.bf] = parseNum(el.value); render();
+  }
+  if(el.dataset && el.dataset.brange !== undefined){
+    S.players[+el.dataset.brange].wx = +el.value; render();
+  }
+});
+document.addEventListener("focusin", function(e){
+  if(e.target.dataset && (e.target.dataset.b !== undefined)) e.target.select();
+});
+
 $("goalSign").addEventListener("click", ()=>{ S.goalVal = -S.goalVal; render(); });
 $("reset").addEventListener("click", ()=>{
   if(confirm("Alle Eingaben auf die Startwerte zurücksetzen?")){
     S = JSON.parse(JSON.stringify(DEFAULTS)); render();
   }
 });
+/* ── Bonus-Auswahl und Blöcke ────────────────────────────── */
+let pickSig = "", blockSig = "";
+function pickRefresh(){
+  const sig = S.players.map(function(p){ return p.name+(p.bon?"1":"0"); }).join("|");
+  if(sig === pickSig) return;
+  pickSig = sig;
+  const wrap = $("bonusPick");
+  if(wrap) wrap.innerHTML = S.players.map(function(p,i){
+    return '<button class="btn'+(p.bon?" on":"")+'" data-bonpick="'+i+'">'+p.name+'</button>';
+  }).join("");
+  const gp = $("goalPick");
+  if(gp) gp.innerHTML = S.players.filter(function(p){return p.bon;}).map(function(p){
+    const i = S.players.indexOf(p);
+    return '<button class="btn'+(S.goalWho===i?" on":"")+'" data-goalwho="'+i+'">'+p.name+'</button>';
+  }).join("") || '<span class="unit">kein Spieler mit Bonus ausgewählt</span>';
+}
+function blocksRefresh(){
+  const on = S.players.map(function(p,i){ return p.bon?i:-1; }).filter(function(i){ return i>=0; });
+  const sig = on.join(",")+"|"+on.map(function(i){ return S.players[i].name; }).join(",");
+  if(sig === blockSig) return;
+  blockSig = sig;
+  const wrap = $("bonusBlocks");
+  if(!wrap) return;
+  if(!on.length){ wrap.innerHTML = '<p class="note">Tipp oben einen Namen an, um ihm einen Bonus zu geben.</p>'; return; }
+  wrap.innerHTML = on.map(function(i){
+    const p = S.players[i];
+    return '<span class="lab" style="margin-top:20px">Bonus für '+p.name+'</span>'+
+      '<div class="panel">'+
+        '<div class="fields">'+
+          '<div class="field"><label>Einzahlung €</label>'+
+            '<input type="text" inputmode="decimal" data-b="'+i+'" data-bf="dep"></div>'+
+          '<div class="field"><label>Bonus €</label>'+
+            '<input type="text" inputmode="decimal" data-b="'+i+'" data-bf="amt"></div>'+
+          '<div class="field"><label>Wager-Multiplikator</label>'+
+            '<input type="text" inputmode="decimal" data-b="'+i+'" data-bf="wx"></div>'+
+          '<div class="field"><label>Invested bb/Hand</label>'+
+            '<input type="text" inputmode="decimal" data-b="'+i+'" data-bf="inv"></div>'+
+          '<div class="field"><label>Hände die er spielt</label>'+
+            '<input type="text" inputmode="decimal" data-b="'+i+'" data-bf="hands"></div>'+
+        '</div>'+
+        '<div class="slide" style="margin-top:16px">'+
+          '<div class="srow"><span class="sname">Multiplikator</span>'+
+            '<span class="sval" data-bo="wx'+i+'">–</span></div>'+
+          '<input type="range" min="0.5" max="16" step="0.05" data-brange="'+i+'">'+
+          '<div style="display:flex;justify-content:space-between;font-family:var(--mono);font-size:10px;color:var(--muted);margin-top:2px">'+
+            '<span>0,5×</span><span data-bo="win'+i+'"></span><span>16×</span></div>'+
+        '</div>'+
+
+        '<div class="formula" data-bo="f'+i+'"></div>'+
+      '</div>';
+  }).join("");
+}
+
 /* ── Szenarien ──────────────────────────────────────────── */
 const SKEY = "rakefluss.scenarios";
 function scenAll(){
@@ -682,7 +774,6 @@ function draw(){
   const W = m.whale.name;
 
   $("sub").textContent = "PLO5 · 25/50 · 6-max · Whale: "+W;
-  $("bonusLab").textContent = "Bonus für "+W+" · einsatzbasiertes Freispielen";
 
   /* Spielerzeilen */
   const cell = (tag,i) => rowsEl ? rowsEl.querySelector('[data-o="'+tag+i+'"]') : null;
@@ -742,71 +833,103 @@ function draw(){
     W+": "+fx(m.whale.gross,1)+" − "+fx(m.whale.rakePaid,1)+
     " + "+fx(m.whale.rewards,1)+" = "+sbb(m.whale.net)+" bb/100";
 
-  /* Bonus */
-  const valid = m.xMin < m.xMax;
-  $("wagerXV").textContent = fx(S.wagerX,2)+"×";
-  $("wagerXV").style.color = (!valid||S.wagerX<m.xMin||S.wagerX>m.xMax)?"var(--rake)":"var(--reg)";
-  $("wagerXR").style.accentColor = (!valid||S.wagerX<m.xMin||S.wagerX>m.xMax)?"var(--rake)":"var(--reg)";
-  $("windowNote").textContent = valid
-    ? "Fenster "+fx(m.xMin,2)+"–"+(isFinite(m.xMax)?fx(m.xMax,2):"∞")+
-      " · Position "+Math.round((S.wagerX-m.xMin)/(m.xMax-m.xMin)*100)+"%"
-    : "kein gültiges Fenster";
-  $("windowV").textContent = valid ? fx(m.xMin,2)+" – "+(isFinite(m.xMax)?fx(m.xMax,2):"∞") : "keins";
-  $("windowV").style.color = valid?"var(--reg)":"var(--rake)";
-  $("windowExp").innerHTML = valid
-    ? "unter "+fx(m.xMin,2)+" zahlst du drauf<br>über "+(isFinite(m.xMax)?fx(m.xMax,2):"∞")+" schafft er es nie"
-    : "Untergrenze liegt über der Obergrenze.<br>Senk den Bonus oder erhöhe Invested bb/Hand.";
-  $("bonusFormula").textContent =
-    "Invested je Hand  "+fx(m.stakeBB,2)+" bb = "+fx(m.stakeH,0)+" €  "+
-      (m.measured?"(eingetragen)":"(geschätzt: Pot "+fx(m.potAll,1)+" bb × "+(m.whale.share*100).toFixed(1)+"%)")+"\n"+
-    "Verlust je Hand   "+(m.lossH/BB).toFixed(2)+" bb = "+fx(m.lossH,0)+" €\n"+
-    "Verhältnis        "+(isFinite(m.ratio)?fx(m.ratio,2):"∞")+"   ← maximaler Multiplikator\n"+
-    "Umsatzziel        "+eur(S.wagerX*m.wagerBase)+"\n"+
-    "Hände dafür       "+kh(m.hFree)+"  ·  Hände bis Bust "+kh(m.hBust);
+  /* Bonus-Blöcke füllen */
+  pickRefresh(); blocksRefresh();
+  m.rows.forEach(function(r,i){
+    if(!r.bon) return;
+    document.querySelectorAll('[data-b="'+i+'"]').forEach(function(el){
+      if(document.activeElement!==el) el.value = r[el.dataset.bf];
+    });
+    const rg = document.querySelector('[data-brange="'+i+'"]');
+    if(rg && document.activeElement!==rg) rg.value = r.wx;
+    const valid = r.xMin < r.xMax;
+    const bad = !valid || r.wx<r.xMin || r.wx>r.xMax;
+    const wv = document.querySelector('[data-bo="wx'+i+'"]');
+    if(wv){ wv.textContent = fx(r.wx,2)+"×"; wv.style.color = bad?"var(--rake)":"var(--reg)"; }
+    if(rg) rg.style.accentColor = bad?"var(--rake)":"var(--reg)";
+    const wn = document.querySelector('[data-bo="win'+i+'"]');
+    if(wn) wn.textContent = valid
+      ? "Fenster "+fx(r.xMin,2)+"–"+fx(r.xMax,2)+" · Position "+Math.round((r.wx-r.xMin)/(r.xMax-r.xMin)*100)+"%"
+      : "kein gültiges Fenster";
+    const f = document.querySelector('[data-bo="f'+i+'"]');
+    if(f) f.textContent =
+      "Invested je Hand  "+fx(r.stakeBB,2)+" bb = "+fx(r.stakeH,0)+" €  "+
+        (r.measured?"(eingetragen)":"(geschätzt aus Pot × Anteil)")+"\n"+
+      "Verlust je Hand   "+fx(r.lossH/BB,2)+" bb = "+fx(r.lossH,0)+" €\n"+
+      "Verhältnis        "+fx(r.ratio,2)+"   ← maximaler Multiplikator\n"+
+      "Umsatzziel        "+eur(r.wx*r.wBase)+"\n"+
+      "Hände zum Freispielen "+kh(r.hFree)+"\n"+
+      "Hände bis Bust        "+kh(r.hBust)+"\n"+
+      "sitzt tatsächlich     "+kh(r.hPlay)+
+        (r.overBust ? "   (deine "+kh(r.hands)+" gehen nicht — vorher pleite)" : "")+"\n"+
+      "Bonus freigespielt    "+(r.freed?"ja":"NEIN")+"\n\n"+
+      "gewagert bis dahin    "+eur(r.wagered)+"\n"+
+      "Chips am Tisch        "+eur(r.balance)+"\n"+
+      "davon auszahlbar      "+eur(r.cashOut)+
+        (r.freed ? "   (Bedingung erfüllt)"
+                 : "   (freigeschaltet "+eur(r.unlocked)+" von "+eur(r.dep)+")");
+  });
 
   /* Rückwärts */
-  $("goalLab").textContent = S.goalMode==="hands" ? "Zielwert in Händen" : "Zielwert in €";
-  const g = solveGoal(m);
-  if(!g){ $("goalOut").textContent="–"; $("goalExp").textContent=""; $("applyWrap").style.display="none"; $("goalNote").textContent=""; }
+  const who = m.rows[S.goalWho] && m.rows[S.goalWho].bon ? m.rows[S.goalWho] : m.bonused[0];
+  const g = who ? solveGoal(m, who) : null;
+  $("goalLab").textContent = "Zielwert in €";
+  if(!g){ $("goalOut").textContent="–"; $("goalExp").textContent="";
+          $("applyWrap").style.display="none"; $("goalNote").textContent=""; }
   else {
-    $("goalOut").textContent = g.ok ? (g.solves==="bonus"?eur(g.value):fx(g.value,2)+"×") : "unmöglich";
+    $("goalOut").textContent = g.ok ? eur(g.value) : "unmöglich";
     $("goalOut").style.color = g.ok?"var(--reg)":"var(--rake)";
-    $("goalExp").innerHTML = (g.solves==="bonus"?"nötiger Bonus":"nötiger Wager-Multiplikator")+"<br>damit "+g.label;
+    $("goalExp").innerHTML = "nötiger Bonus<br>damit "+g.label;
     $("applyWrap").style.display = g.ok?"":"none";
-    $("applyBtn").onclick = ()=>{
-      if(g.solves==="bonus") S.bonus = Math.round(g.value/100)*100;
-      else S.wagerX = Math.round(g.value*100)/100;
+    $("applyBtn").onclick = function(){
+      who.amtRef.amt = Math.round(g.value/100)*100;
+      who.amtRef.wx  = Math.floor(g.maxX*100)/100;
       render();
     };
     $("goalNote").innerHTML = g.ok
-      ? W+" spielt dafür "+kh(g.hands)+" Hände von "+kh(m.hBust)+" möglichen."+
-        (g.solves==="X" && valid && (g.value<m.xMin||g.value>m.xMax)
-          ? " <b style='color:var(--fish)'>Achtung:</b> außerhalb des Fensters — "+
-            (g.value<m.xMin?"du zahlst dabei drauf.":"er ist vorher pleite.")
-          : "")
-      : "Nicht erreichbar. "+W+" ist nach "+kh(m.hBust)+" Händen pleite. Erhöhe den Bonus, "+
-        "senk den Rake, oder gib ihm ein Rebate.";
+      ? "Dazu darf der Multiplikator höchstens <b>"+fx(g.maxX,2)+"×</b> sein, sonst spielt er den "+
+        "Bonus in "+kh(g.hands)+" Händen nicht frei. Übernehmen setzt beides."
+      : g.tooLow
+        ? "Ziel zu niedrig. In "+kh(g.hands)+" Händen verliert "+who.name+" ohne jeden Bonus "+
+          eur(-g.ohneBonus)+" — ein Bonus macht sein Ergebnis nur besser."
+        : "In "+kh(g.hands)+" Händen nicht möglich. Mit diesem Bonus wäre er schon nach "+
+          kh(g.bust)+" Händen pleite. Setz die Handzahl niedriger.";
   }
 
-  /* KPIs */
-  $("k1v").textContent = m.makes?"Ja":"Nein";
-  $("k1v").style.color = m.makes?"var(--reg)":"var(--rake)";
-  $("k1n").textContent = m.makes ? "nach "+kh(m.hFree)+" Händen" : "pleite nach "+kh(m.hBust);
-  $("k2v").textContent = eur(m.balance);
-  $("k2v").style.color = m.balance>S.deposit?"var(--rake)":"var(--fish)";
-  $("k2n").textContent = m.balance>S.deposit
-    ? "er geht "+eur(m.balance-S.deposit)+" im Plus raus"
-    : "Verlust "+eur(S.deposit-m.balance);
-  $("k3v").textContent = eur(m.rakeWhale);
-  $("k3n").textContent = "gegen "+eur(S.bonus)+" Bonus";
-  $("k4v").textContent = eur(m.result);
-  $("k4v").style.color = m.result>0?"var(--reg)":"var(--rake)";
-  $("k4n").textContent = "ganzer Tisch minus Bonus";
-  $("resNote").innerHTML = (m.rakeWhale<S.bonus
-    ? "Sein eigener Rake deckt den Bonus nicht — die Differenz von "+eur(S.bonus-m.rakeWhale)+
-      " zahlen die Regs, die wegen ihm am Tisch sitzen. " : "")+
-    "Bei "+S.hph+" Händen je Stunde sind "+kh(m.hPlay)+" Hände rund "+
-    (m.hPlay/S.hph).toFixed(1)+" Stunden.";
+  /* Ergebnis je Bonus */
+  const br = $("bonusResults");
+  if(br) br.innerHTML = m.bonused.length ? m.bonused.map(function(r){
+    return '<div class="kpis" style="margin-bottom:10px">'+
+      '<div class="kpi"><span class="kl">'+r.name+' spielt Bonus frei?</span>'+
+        '<span class="kv" style="color:'+(r.freed?"var(--reg)":"var(--rake)")+'">'+(r.freed?"Ja":"Nein")+'</span>'+
+        '<span class="kn">'+(r.freed?"nach "+kh(r.hFree)+" von "+kh(r.hPlay)+" Händen"
+                                     :"bräuchte "+kh(r.hFree)+", sitzt "+kh(r.hPlay))+'</span></div>'+
+      '<div class="kpi"><span class="kl">Auszahlbar</span>'+
+        '<span class="kv" style="color:'+(r.own>0?"var(--rake)":"var(--fish)")+'">'+eur(r.cashOut)+'</span>'+
+        '<span class="kn">von '+eur(r.balance)+' Chips · Ergebnis '+eur(r.own)+'</span></div>'+
+      '<div class="kpi"><span class="kl">Rake von ihm</span>'+
+        '<span class="kv">'+eur(r.rakeOwn)+'</span>'+
+        '<span class="kn">gegen '+eur(r.amt)+' Bonus</span></div>'+
+      '<div class="kpi"><span class="kl">Am Tisch verspielt</span>'+
+        '<span class="kv">'+eur(r.dep+r.amt-r.balance)+'</span>'+
+        '<span class="kn">davon '+eur(Math.min(r.amt, r.dep+r.amt-r.balance))+' dein Geld</span></div>'+
+      '</div>';
+  }).join("") : '<p class="note">Kein Spieler hat einen Bonus.</p>';
+
+  $("kH").textContent = kh(m.H);
+  $("kHn").textContent = "Hände · "+fx(m.H/S.hph,1)+" Std bei "+S.hph+"/h";
+  $("kR").textContent = eur(m.rakeTotal);
+  $("kRn").textContent = "über die ganze Session";
+  $("kB").textContent = eur(m.bonusSum);
+  $("kBn").textContent = m.bonused.length+(m.bonused.length===1?" Bonus":" Boni");
+  $("kE").textContent = eur(m.result);
+  $("kE").style.color = m.result>0?"var(--reg)":"var(--rake)";
+  const pn = $("payoutNote");
+  if(pn) pn.innerHTML = "Jeder gewagerte Euro schaltet einen Euro seiner Einzahlung frei, "+
+    "höchstens bis zur vollen Einzahlung. Der Bonus wird erst frei, wenn die ganze Bedingung erfüllt ist.";
+  $("resNote").innerHTML = m.bonused.length>1
+    ? "Bei mehreren Boni läuft der Tisch, bis der letzte durch ist. Wer vorher geht, erzeugt ab dann keinen Rake mehr — das ist eingerechnet."
+    : "Rake zählt nur, solange der Spieler tatsächlich am Tisch sitzt.";
 
   /* Kurve */
   const pts=[];
@@ -842,22 +965,36 @@ function draw(){
       m.opNet100.toFixed(1)+' bb/100.</div>';
 }
 
-function solveGoal(m){
-  if(!(m.lossH>0)||!(m.stakeH>0)) return null;
-  const k = m.lossH/m.stakeH;
-  if(S.goalMode==="bonus"){
-    const b = (S.goalVal + S.wagerX*S.deposit*k)/(1 - S.wagerX*k);
-    const wb = S.wagerBase==="bonus"?b:S.deposit+b;
-    return { solves:"bonus", value:b, label:m.whale.name+" endet bei "+eur(S.goalVal),
-             ok: b>0 && S.wagerX*k<1, hands: b>0 ? S.wagerX*wb/m.stakeH : 0 };
+function solveGoal(m, w){
+  if(!w || !(w.lossH>0) || !(w.stakeH>0)) return null;
+  w.amtRef = S.players[m.rows.indexOf(w)];
+  const H = w.hands;                       // deine Vorgabe, fix
+  const verlust = H*w.lossH;               // was er in H Händen verliert
+
+  // Nötiger Bonus, damit das Ziel aufgeht
+  let b, label;
+  if(S.goalMode==="you"){
+    // dein Ergebnis = Rake über H − Bonus
+    const rakeOhne = m.rows.reduce(function(a,r){
+      return a + Math.min(r.bon?H:H, r.bon?H:H)*r.rakeH; },0);
+    b = rakeOhne - S.goalVal;
+    label = "du machst "+eur(S.goalVal)+" bei "+kh(H)+" Händen";
+  } else {
+    b = S.goalVal + verlust;               // sein Ergebnis = Bonus − Verlust
+    label = w.name+" endet bei "+eur(S.goalVal)+" nach "+kh(H)+" Händen";
   }
-  let hands, label;
-  if(S.goalMode==="ferry"){ hands=(S.bonus-S.goalVal)/m.lossH; label=m.whale.name+" endet bei "+eur(S.goalVal); }
-  else if(S.goalMode==="you"){ hands=(S.goalVal+S.bonus)/m.rakeTableH; label="du machst "+eur(S.goalVal); }
-  else { hands=S.goalVal; label=Math.round(S.goalVal).toLocaleString("de-DE")+" Hände"; }
-  const X = hands*m.stakeH/m.wagerBase;
-  return { solves:"X", value:X, label, hands, ok: hands>0 && hands<=m.hBust+0.5 && X>0 };
+
+  const wBase = S.wagerBase==="bonus" ? b : w.dep + b;
+  const maxX  = (b>0 && wBase>0) ? H*w.stakeH/wBase : 0;   // damit er in H Händen freispielt
+  const bust  = b>0 ? (w.dep+b)/w.lossH : 0;
+  const ohneBonus = -Math.min(H, w.dep/w.lossH)*w.lossH;   // Ergebnis ganz ohne Bonus
+
+  return { value:b, label, maxX, bust, hands:H, ohneBonus,
+           tooLow: b<=0,
+           overBust: H > bust + 0.5,
+           ok: b>0 && H <= bust+0.5 && maxX>0 };
 }
+
 
 render();
 </script>
