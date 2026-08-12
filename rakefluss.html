@@ -129,7 +129,7 @@ select:focus{outline:2px solid var(--bone);outline-offset:1px}
 <header>
   <h1>Rakefluss</h1>
   <div class="sub" id="sub">PLO5 · 25/50 · 6-max</div>
-  <div class="sub" style="margin-top:2px;opacity:.6">Version 9</div>
+  <div class="sub" style="margin-top:2px;opacity:.6">Version 10</div>
 </header>
 
 <!-- SZENARIEN -->
@@ -471,23 +471,24 @@ function model(rebateRate){
     r.stakeH  = r.stakeBB*BB;
     r.lossH   = (-r.net/100)*BB;
     r.wBase   = S.wagerBase==="bonus" ? r.amt : r.dep + r.amt;
-    r.hFree   = r.stakeH>0 ? (r.wx*r.wBase)/r.stakeH : Infinity;
+    r.hFree   = r.stakeH>0 ? (r.wx*r.wBase)/r.stakeH : Infinity;      // volle Bonusbedingung
+    r.hDepFree = r.stakeH>0 ? r.dep/r.stakeH : Infinity;              // 1× Einzahlung umgesetzt
     r.hBust   = r.lossH>0  ? (r.dep+r.amt)/r.lossH    : Infinity;
     r.makes   = r.hFree <= r.hBust;
     // Die Handzahl gibst du vor; mehr als bis zum Bust geht nicht
     r.hPlay    = Math.min(r.hands, r.hBust);
     r.overBust = r.hands > r.hBust + 0.5;
-    r.freed   = r.hFree <= r.hPlay;                  // hat er es im Sitzen geschafft?
+    r.freed    = r.hFree <= r.hPlay;      // volle Bonusbedingung erfüllt?
+    r.depFreed = r.hDepFree <= r.hPlay;   // Einzahlung 1× umgesetzt?
     r.balance = Math.max((r.dep+r.amt) - r.hPlay*r.lossH, 0);   // Chips am Tisch
     r.wagered = Number.isFinite(r.hPlay) ? r.hPlay*r.stakeH : 0;
-    // Auszahlbar: bei erfüllter Bedingung alles, sonst je nach Regel
-    // Gewagertes schaltet frei, höchstens bis zur eigenen Einzahlung.
-    // Erst mit erfüllter Bonusbedingung wird auch der Bonus frei.
-    // Zwei Varianten, wie die Sperre wirkt, bis die volle Bedingung erfüllt ist:
-    //  "both"       – Umsatz schaltet die EIGENE Einzahlung frei, gedeckelt bei r.dep.
-    //                  Vor der Schwelle darf er höchstens seinen umgesetzten Betrag abheben.
-    //  "bonusOnly"  – die Einzahlung ist immer voll frei, nur der Bonus ist gesperrt.
-    r.unlocked = S.lockMode==="bonusOnly" ? r.dep : Math.min(r.wagered, r.dep);
+    // Zwei Sperrvarianten, bis die volle Bonusbedingung erfüllt ist — beide sind
+    // Alles-oder-nichts an ihrer jeweiligen Schwelle, kein anteiliges Freischalten:
+    //  "bonusOnly"  – Einzahlung wird frei, sobald sie 1× umgesetzt ist (hDepFree).
+    //                 Der Bonus bleibt bis zur vollen Bedingung (hFree) separat gesperrt.
+    //  "both"       – nichts geht vor der vollen Bedingung (hFree). Erst dann wird
+    //                 alles auf einmal frei — Einzahlung UND Bonus zusammen.
+    r.unlocked = S.lockMode==="bonusOnly" ? (r.depFreed ? r.dep : 0) : 0;
     r.cashOut  = r.freed ? r.balance : Math.min(r.balance, r.unlocked);
     // Was er nicht mitnehmen darf, liegt noch als Chips da und kommt an dich zurück
     r.leftover  = Math.max(r.balance - r.cashOut, 0);
@@ -905,10 +906,12 @@ function draw(){
       "Chips am Tisch        "+eur(r.balance)+"\n"+
       "fällt an dich zurück  "+eur(r.leftover)+"   (Bonus kostet dich "+eur(r.bonusCost)+")\n"+
       "davon auszahlbar      "+eur(r.cashOut)+
-        (r.freed ? "   (Bedingung erfüllt)"
+        (r.freed ? "   (Bedingung erfüllt — alles frei)"
                  : (S.lockMode==="bonusOnly"
-                     ? "   (Einzahlung immer frei)"
-                     : "   (freigeschaltet "+eur(r.unlocked)+" von "+eur(r.dep)+")"));
+                     ? (r.depFreed
+                         ? "   (Einzahlung 1× umgesetzt — sie ist frei, Bonus noch gesperrt)"
+                         : "   (Einzahlung noch keine 1× umgesetzt, ab "+kh(r.hDepFree)+" Händen frei)")
+                     : "   (nichts frei vor der vollen Bedingung bei "+kh(r.hFree)+" Händen)"));
   });
 
   /* Rückwärts */
@@ -957,23 +960,30 @@ function draw(){
     else if(hn.ok){
       $("goalOut").textContent = kh(hn.hands);
       $("goalOut").style.color = "var(--reg)";
-      $("goalExp").innerHTML = "nötige Hände<br>bis "+who.name+" bei "+eur(S.goalVal)+" ankommt";
+      $("goalExp").innerHTML = "nötige Hände<br>bis "+who.name+" real "+eur(S.goalVal)+" verloren hat";
       $("applyWrap").style.display = "";
       $("applyBtn").onclick = function(){ who.amtRef.hands = Math.round(hn.hands); render(); };
+      const lockInfo = hn.freedAt
+        ? "die volle Bedingung ist zu diesem Zeitpunkt erfüllt — er dürfte "+eur(hn.cashOut)+" abrufen"
+        : S.lockMode === "bonusOnly"
+          ? (hn.depFreedAt
+              ? "seine Einzahlung ist 1× umgesetzt und frei, der Bonus aber noch gesperrt — abrufbar wären "+eur(hn.cashOut)
+              : "noch nicht mal seine Einzahlung ist 1× umgesetzt — abrufbar wäre <b style='color:var(--rake)'>€0</b>")
+          : "vor der vollen Bedingung ist bei diesem Modus <b style='color:var(--rake)'>nichts</b> abrufbar";
       $("goalNote").innerHTML =
-        "Bei Bonus "+eur(who.amt)+" und "+fx(who.wx,2)+"× ist er zu diesem Zeitpunkt "+
-        (hn.freedAt ? "bereits freigespielt" : "<b style='color:var(--fish)'>noch nicht freigespielt</b> — "+
-          "das Ergebnis besteht dann nur aus freigeschalteter Einzahlung, nicht aus dem vollen Bonus")+
-        ". Übernehmen trägt die Handzahl oben ein.";
+        "Das ist sein echter Verlust am Tisch, unabhängig davon, was er auszahlen dürfte. "+
+        "Zu diesem Zeitpunkt gilt: "+lockInfo+". Übernehmen trägt die Handzahl oben ein.";
     } else {
       $("goalOut").textContent = "unmöglich";
       $("goalOut").style.color = "var(--rake)";
-      $("goalExp").innerHTML = "nötige Hände<br>bis "+(who?who.name:"er")+" bei "+eur(S.goalVal)+" ankommt";
+      $("goalExp").innerHTML = "nötige Hände<br>bis "+(who?who.name:"er")+" real "+eur(S.goalVal)+" verloren hat";
       $("applyWrap").style.display = "none";
-      $("goalNote").innerHTML = who
-        ? "Nicht erreichbar. Schlechter als "+eur(hn.worst)+" kann "+who.name+" mit diesem Bonus "+
-          "nicht enden — mehr als seine Einzahlung plus Bonus gibt es nicht zu verlieren."
-        : "";
+      $("goalNote").innerHTML = !who ? ""
+        : hn.tooHigh
+          ? "Ziel zu hoch. Mehr als seinen vollen Bonus "+eur(who.amt)+" kann "+who.name+" nicht "+
+            "gewinnen — das wäre sein Ergebnis, wenn er keine einzige Hand verlieren würde."
+          : "Nicht erreichbar. Schlechter als "+eur(hn.worst)+" kann "+who.name+" nicht enden — "+
+            "mehr als Einzahlung plus Bonus gibt es nicht zu verlieren.";
     }
   } else {
     const g = who ? solveGoal(m, who) : null;
@@ -1055,12 +1065,10 @@ function draw(){
   $("kE").style.color = m.result>0?"var(--reg)":"var(--rake)";
   const pn = $("payoutNote");
   if(pn) pn.innerHTML = S.lockMode==="both"
-    ? "Er sieht seinen Fortschritt als Balken. Weil auch die eigene Einzahlung erst mit dem Umsatz "+
-      "freigeschaltet wird, spielt er tendenziell bis zur Schwelle weiter statt zufällig davor "+
-      "aufzuhören — das zieht Spielzeit, macht die Sperre für ihn aber auch spürbarer."
-    : "Seine Einzahlung ist jederzeit auszahlbar, nur der Bonus ist bis zur vollen Bedingung "+
-      "gesperrt. Weniger Zwang zum Weiterspielen, aber auch ein leichterer Ausstieg, sobald "+
-      "der Bonus ohnehin abgeschrieben ist.";
+    ? "Alles-oder-nichts: Vor der vollen Bedingung (Einzahlung+Bonus × Multiplikator) kann er "+
+      "nichts abrufen — auch nicht anteilig. Danach wird alles auf einen Schlag frei."
+    : "Zwei Schwellen: Die Einzahlung wird frei, sobald er sie einfach (1×) umgesetzt hat. Der "+
+      "Bonus bleibt separat gesperrt, bis die volle Bedingung erfüllt ist.";
   $("resNote").innerHTML = m.bonused.length>1
     ? "Bei mehreren Boni läuft der Tisch, bis der letzte durch ist. Wer vorher geht, erzeugt ab dann keinen Rake mehr — das ist eingerechnet."
     : "Rake zählt nur, solange der Spieler tatsächlich am Tisch sitzt.";
@@ -1154,38 +1162,26 @@ function solveGoal(m, w){
            ok: b>0 && H <= bust+0.5 && maxX>0 };
 }
 
-// Bonus & Multiplikator stehen fest — gesucht ist die Handzahl bis zum Zielergebnis.
-// own(H) ist grösstenteils fallend, springt aber am Freispiel-Punkt nach oben (die "Klippe").
-// Deshalb: fein abtasten und den ERSTEN Punkt nehmen, an dem das Ziel erreicht oder
-// unterschritten wird — das ist der früheste Zeitpunkt, zu dem er dort ankommt.
-function ownAt(w, H){
-  const hPlay = Math.min(H, w.hBust);
-  const balance = Math.max((w.dep + w.amt) - hPlay * w.lossH, 0);
-  const wagered = hPlay * w.stakeH;
-  const freed = w.hFree <= hPlay;
-  const unlocked = S.lockMode === "bonusOnly" ? w.dep : Math.min(wagered, w.dep);
-  const cashOut = freed ? balance : Math.min(balance, unlocked);
-  return cashOut - w.dep;
-}
+// Bonus & Multiplikator stehen fest — gesucht ist die Handzahl bis zum ECHTEN Tischverlust.
+// Wichtig: das rechnet unabhängig von der Sperre, denn die Sperre selbst hat keine sanfte
+// Kurve — sie ist an ihrer Schwelle Alles-oder-nichts und sein offizieller Kontostand bleibt
+// davor oft lange konstant (z. B. bei "Einzahlung+Bonus gesperrt" die ganze Zeit bei
+// -Einzahlung). Ein Ziel würde dort sofort "erreicht" gemeldet, ganz gleich wie viele Hände
+// er wirklich gespielt hat — das wäre keine brauchbare Antwort. Stattdessen: Handzahl aus dem
+// echten, ungebremsten Verlust lösen, und separat dazu sagen, was er zu dem Zeitpunkt gemäß
+// Sperre tatsächlich abrufen dürfte.
 function solveHandsNeeded(m, w){
-  if(!w || !(w.lossH>0) || !Number.isFinite(w.hBust) || w.hBust<=0) return null;
-  const N = 600;
-  const step = w.hBust / N;
-  let prev = ownAt(w, 0);
-  for(let i=1;i<=N;i++){
-    const H = i*step;
-    const cur = ownAt(w, H);
-    if(cur <= S.goalVal){
-      // lineare Interpolation zwischen den beiden Stützpunkten, sofern kein Sprung dazwischen liegt
-      const crossedCliff = (prev > cur) && (Math.abs(cur-prev) > 0) && (H-step < w.hFree && H >= w.hFree);
-      let H0;
-      if (crossedCliff || cur===prev) H0 = H;
-      else { const t = (prev - S.goalVal) / (prev - cur); H0 = (H-step) + t*step; }
-      return { ok:true, hands:H0, freedAt:H0>=w.hFree, own:ownAt(w,H0) };
-    }
-    prev = cur;
-  }
-  return { ok:false, worst: ownAt(w, w.hBust) };
+  if(!w || !(w.lossH>0)) return null;
+  const worst = -w.dep;              // schlechtestmöglicher Wert: alles verloren
+  if(S.goalVal > w.amt + 0.5) return { ok:false, tooHigh:true };
+  if(S.goalVal < worst - 0.5)  return { ok:false, worst };
+  const H = Math.min((w.amt - S.goalVal) / w.lossH, w.hBust);
+  const freedAt    = w.hFree    <= H;
+  const depFreedAt = w.hDepFree <= H;
+  const bal = Math.max((w.dep + w.amt) - H * w.lossH, 0);
+  const unlocked = S.lockMode === "bonusOnly" ? (depFreedAt ? w.dep : 0) : 0;
+  const cashOut = freedAt ? bal : Math.min(bal, unlocked);
+  return { ok:true, hands:H, freedAt, depFreedAt, cashOut, own:cashOut - w.dep };
 }
 
 
