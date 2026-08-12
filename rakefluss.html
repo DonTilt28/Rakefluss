@@ -121,7 +121,7 @@ select:focus{outline:2px solid var(--bone);outline-offset:1px}
 <header>
   <h1>Rakefluss</h1>
   <div class="sub" id="sub">PLO5 · 25/50 · 6-max</div>
-  <div class="sub" style="margin-top:2px;opacity:.6">Version vom 12. August 2026, 16:20</div>
+  <div class="sub" style="margin-top:2px;opacity:.6">Version vom 12. August 2026, 16:45</div>
 </header>
 
 <!-- SZENARIEN -->
@@ -237,8 +237,9 @@ select:focus{outline:2px solid var(--bone);outline-offset:1px}
   <div class="panel">
     <div class="btns" id="goalPick" style="margin-bottom:10px"></div>
     <div class="btns">
-      <button class="btn on" data-grp="goalMode" data-val="ferry">Sein Ergebnis</button>
-      <button class="btn" data-grp="goalMode" data-val="you">Dein Ergebnis</button>
+      <button class="btn on" data-grp="goalMode" data-val="ferry">Bonus lösen</button>
+      <button class="btn" data-grp="goalMode" data-val="you">Bonus lösen (dein Erg.)</button>
+      <button class="btn" data-grp="goalMode" data-val="handsneeded">Hände nötig</button>
     </div>
     <div class="fields one" style="margin-top:14px">
       <div class="field"><label for="goalVal" id="goalLab">Zielwert in €</label>
@@ -359,7 +360,7 @@ function sanitize(o){
   if(o.rebBase !== "gross") o.rebBase = "net";
   if(o.wagerBase !== "bonus") o.wagerBase = "both";
   if(o.lockMode !== "bonusOnly") o.lockMode = "both";
-  if(["ferry","you"].indexOf(o.goalMode) < 0) o.goalMode = "ferry";
+  if(["ferry","you","handsneeded"].indexOf(o.goalMode) < 0) o.goalMode = "ferry";
   o.goalWho = Number.isFinite(Number(o.goalWho)) ? Math.max(0,Math.min(5,Number(o.goalWho))) : 5;
   if(!Array.isArray(o.players) || o.players.length === 0)
     o.players = JSON.parse(JSON.stringify(d.players));
@@ -564,7 +565,7 @@ function fillInputs(){
   });
   $("goalSign").textContent = S.goalVal<0?"−":"+";
   $("goalSign").classList.toggle("neg", S.goalVal<0);
-  $("goalSign").style.display = S.goalMode==="hands" ? "none" : "";
+  $("goalSign").style.display = "";
   document.querySelectorAll("[data-grp]").forEach(b=>{
     b.classList.toggle("on", S[b.dataset.grp]===b.dataset.val);
   });
@@ -893,28 +894,56 @@ function draw(){
 
   /* Rückwärts */
   const who = m.rows[S.goalWho] && m.rows[S.goalWho].bon ? m.rows[S.goalWho] : m.bonused[0];
-  const g = who ? solveGoal(m, who) : null;
   $("goalLab").textContent = "Zielwert in €";
-  if(!g){ $("goalOut").textContent="–"; $("goalExp").textContent="";
-          $("applyWrap").style.display="none"; $("goalNote").textContent=""; }
-  else {
-    $("goalOut").textContent = g.ok ? eur(g.value) : "unmöglich";
-    $("goalOut").style.color = g.ok?"var(--reg)":"var(--rake)";
-    $("goalExp").innerHTML = "nötiger Bonus<br>damit "+g.label;
-    $("applyWrap").style.display = g.ok?"":"none";
-    $("applyBtn").onclick = function(){
-      who.amtRef.amt = Math.round(g.value/100)*100;
-      who.amtRef.wx  = Math.floor(g.maxX*100)/100;
-      render();
-    };
-    $("goalNote").innerHTML = g.ok
-      ? "Dazu darf der Multiplikator höchstens <b>"+fx(g.maxX,2)+"×</b> sein, sonst spielt er den "+
-        "Bonus in "+kh(g.hands)+" Händen nicht frei. Übernehmen setzt beides."
-      : g.tooLow
-        ? "Ziel zu niedrig. In "+kh(g.hands)+" Händen verliert "+who.name+" ohne jeden Bonus "+
-          eur(-g.ohneBonus)+" — ein Bonus macht sein Ergebnis nur besser."
-        : "In "+kh(g.hands)+" Händen nicht möglich. Mit diesem Bonus wäre er schon nach "+
-          kh(g.bust)+" Händen pleite. Setz die Handzahl niedriger.";
+
+  if(S.goalMode === "handsneeded"){
+    const hn = who ? solveHandsNeeded(m, who) : null;
+    if(!hn){ $("goalOut").textContent="–"; $("goalExp").textContent="";
+             $("applyWrap").style.display="none"; $("goalNote").textContent=""; }
+    else if(hn.ok){
+      $("goalOut").textContent = kh(hn.hands);
+      $("goalOut").style.color = "var(--reg)";
+      $("goalExp").innerHTML = "nötige Hände<br>bis "+who.name+" bei "+eur(S.goalVal)+" ankommt";
+      $("applyWrap").style.display = "";
+      $("applyBtn").onclick = function(){ who.amtRef.hands = Math.round(hn.hands); render(); };
+      $("goalNote").innerHTML =
+        "Bei Bonus "+eur(who.amt)+" und "+fx(who.wx,2)+"× ist er zu diesem Zeitpunkt "+
+        (hn.freedAt ? "bereits freigespielt" : "<b style='color:var(--fish)'>noch nicht freigespielt</b> — "+
+          "das Ergebnis besteht dann nur aus freigeschalteter Einzahlung, nicht aus dem vollen Bonus")+
+        ". Übernehmen trägt die Handzahl oben ein.";
+    } else {
+      $("goalOut").textContent = "unmöglich";
+      $("goalOut").style.color = "var(--rake)";
+      $("goalExp").innerHTML = "nötige Hände<br>bis "+(who?who.name:"er")+" bei "+eur(S.goalVal)+" ankommt";
+      $("applyWrap").style.display = "none";
+      $("goalNote").innerHTML = who
+        ? "Nicht erreichbar. Schlechter als "+eur(hn.worst)+" kann "+who.name+" mit diesem Bonus "+
+          "nicht enden — mehr als seine Einzahlung plus Bonus gibt es nicht zu verlieren."
+        : "";
+    }
+  } else {
+    const g = who ? solveGoal(m, who) : null;
+    if(!g){ $("goalOut").textContent="–"; $("goalExp").textContent="";
+            $("applyWrap").style.display="none"; $("goalNote").textContent=""; }
+    else {
+      $("goalOut").textContent = g.ok ? eur(g.value) : "unmöglich";
+      $("goalOut").style.color = g.ok?"var(--reg)":"var(--rake)";
+      $("goalExp").innerHTML = "nötiger Bonus<br>damit "+g.label;
+      $("applyWrap").style.display = g.ok?"":"none";
+      $("applyBtn").onclick = function(){
+        who.amtRef.amt = Math.round(g.value/100)*100;
+        who.amtRef.wx  = Math.floor(g.maxX*100)/100;
+        render();
+      };
+      $("goalNote").innerHTML = g.ok
+        ? "Dazu darf der Multiplikator höchstens <b>"+fx(g.maxX,2)+"×</b> sein, sonst spielt er den "+
+          "Bonus in "+kh(g.hands)+" Händen nicht frei. Übernehmen setzt beides."
+        : g.tooLow
+          ? "Ziel zu niedrig. In "+kh(g.hands)+" Händen verliert "+who.name+" ohne jeden Bonus "+
+            eur(-g.ohneBonus)+" — ein Bonus macht sein Ergebnis nur besser."
+          : "In "+kh(g.hands)+" Händen nicht möglich. Mit diesem Bonus wäre er schon nach "+
+            kh(g.bust)+" Händen pleite. Setz die Handzahl niedriger.";
+    }
   }
 
   /* Ergebnis je Bonus */
@@ -1046,6 +1075,40 @@ function solveGoal(m, w){
            tooLow: b<=0,
            overBust: H > bust + 0.5,
            ok: b>0 && H <= bust+0.5 && maxX>0 };
+}
+
+// Bonus & Multiplikator stehen fest — gesucht ist die Handzahl bis zum Zielergebnis.
+// own(H) ist grösstenteils fallend, springt aber am Freispiel-Punkt nach oben (die "Klippe").
+// Deshalb: fein abtasten und den ERSTEN Punkt nehmen, an dem das Ziel erreicht oder
+// unterschritten wird — das ist der früheste Zeitpunkt, zu dem er dort ankommt.
+function ownAt(w, H){
+  const hPlay = Math.min(H, w.hBust);
+  const balance = Math.max((w.dep + w.amt) - hPlay * w.lossH, 0);
+  const wagered = hPlay * w.stakeH;
+  const freed = w.hFree <= hPlay;
+  const unlocked = S.lockMode === "bonusOnly" ? w.dep : Math.min(wagered, w.dep);
+  const cashOut = freed ? balance : Math.min(balance, unlocked);
+  return cashOut - w.dep;
+}
+function solveHandsNeeded(m, w){
+  if(!w || !(w.lossH>0) || !Number.isFinite(w.hBust) || w.hBust<=0) return null;
+  const N = 600;
+  const step = w.hBust / N;
+  let prev = ownAt(w, 0);
+  for(let i=1;i<=N;i++){
+    const H = i*step;
+    const cur = ownAt(w, H);
+    if(cur <= S.goalVal){
+      // lineare Interpolation zwischen den beiden Stützpunkten, sofern kein Sprung dazwischen liegt
+      const crossedCliff = (prev > cur) && (Math.abs(cur-prev) > 0) && (H-step < w.hFree && H >= w.hFree);
+      let H0;
+      if (crossedCliff || cur===prev) H0 = H;
+      else { const t = (prev - S.goalVal) / (prev - cur); H0 = (H-step) + t*step; }
+      return { ok:true, hands:H0, freedAt:H0>=w.hFree, own:ownAt(w,H0) };
+    }
+    prev = cur;
+  }
+  return { ok:false, worst: ownAt(w, w.hBust) };
 }
 
 
