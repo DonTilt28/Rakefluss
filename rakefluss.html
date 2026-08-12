@@ -121,7 +121,7 @@ select:focus{outline:2px solid var(--bone);outline-offset:1px}
 <header>
   <h1>Rakefluss</h1>
   <div class="sub" id="sub">PLO5 · 25/50 · 6-max</div>
-  <div class="sub" style="margin-top:2px;opacity:.6">Version vom 12. August 2026, 16:45</div>
+  <div class="sub" style="margin-top:2px;opacity:.6">Version vom 12. August 2026, 17:10</div>
 </header>
 
 <!-- SZENARIEN -->
@@ -241,6 +241,7 @@ select:focus{outline:2px solid var(--bone);outline-offset:1px}
       <button class="btn" data-grp="goalMode" data-val="you">Bonus lösen (dein Erg.)</button>
       <button class="btn" data-grp="goalMode" data-val="handsneeded">Hände nötig</button>
     </div>
+    <p class="note" id="goalModeHint" style="margin-top:10px"></p>
     <div class="fields one" style="margin-top:14px">
       <div class="field"><label for="goalVal" id="goalLab">Zielwert in €</label>
         <span class="sgn"><button class="sign neg" id="goalSign">−</button>
@@ -895,6 +896,17 @@ function draw(){
   /* Rückwärts */
   const who = m.rows[S.goalWho] && m.rows[S.goalWho].bon ? m.rows[S.goalWho] : m.bonused[0];
   $("goalLab").textContent = "Zielwert in €";
+  const gmh = $("goalModeHint");
+  if(gmh) gmh.innerHTML = S.goalMode==="you"
+    ? "<b style='color:var(--fish)'>Ignoriert den Bonus, den du oben eingetragen hast</b> — schlägt "+
+      "einen eigenen vor. Normalerweise ein <b>positives</b> Ziel (dein Gewinn). Ein negatives Ziel "+
+      "heißt: du willst absichtlich mehr Bonus zahlen, als der Rake einbringt."
+    : S.goalMode==="ferry"
+      ? "<b style='color:var(--fish)'>Ignoriert den Bonus, den du oben eingetragen hast</b> — schlägt "+
+        "einen eigenen vor. Normalerweise ein <b>negatives</b> Ziel (sein Ergebnis nach Rake und Bonus). "+
+        "Steht dein Bonus schon fest? Dann nimm „Hände nötig\u201c statt dieses Modus."
+      : "<b style='color:var(--reg)'>Nutzt Bonus und Multiplikator, die oben stehen</b> — rechnet nur "+
+        "die Handzahl dazu aus.";
 
   if(S.goalMode === "handsneeded"){
     const hn = who ? solveHandsNeeded(m, who) : null;
