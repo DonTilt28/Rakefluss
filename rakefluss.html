@@ -221,6 +221,10 @@ select:focus{outline:2px solid var(--bone);outline-offset:1px}
       <button class="btn on" data-grp="wagerBase" data-val="both">Basis: Einzahlung + Bonus</button>
       <button class="btn" data-grp="wagerBase" data-val="bonus">Basis: nur Bonus</button>
     </div>
+    <div class="btns" style="margin-top:14px">
+      <button class="btn on" data-grp="lockMode" data-val="both">Einzahlung + Bonus gesperrt</button>
+      <button class="btn" data-grp="lockMode" data-val="bonusOnly">Nur Bonus gesperrt</button>
+    </div>
     <p class="note" id="payoutNote"></p>
   </div>
   <div id="bonusBlocks"></div>
@@ -280,9 +284,12 @@ select:focus{outline:2px solid var(--bone);outline-offset:1px}
       <path id="cpath" fill="none" stroke="#D9A441" stroke-width="2"></path>
       <line id="cmark" y1="16" y2="129" stroke="#E6E2D8" stroke-dasharray="3 3"></line>
       <circle id="cdot" r="4" fill="#E6E2D8"></circle>
-      <text x="26" y="148" fill="#828C9D" font-size="10" font-family="monospace">0% Rebate</text>
-      <text x="574" y="148" text-anchor="end" fill="#828C9D" font-size="10" font-family="monospace">100%</text>
+      <line id="czero" x1="26" x2="574" stroke="#828C9D" stroke-dasharray="2 4"></line>
+      <line id="cfree" y1="16" y2="129" stroke="#C9354A" stroke-dasharray="4 3"></line>
+      <text x="26" y="148" fill="#828C9D" font-size="10" font-family="monospace">0 Hände</text>
+      <text x="574" y="148" text-anchor="end" fill="#828C9D" font-size="10" font-family="monospace" id="cend"></text>
       <text x="26" y="14" fill="#828C9D" font-size="10" font-family="monospace" id="cmax"></text>
+      <text x="574" y="14" text-anchor="end" fill="#C9354A" font-size="10" font-family="monospace" id="cfreetxt"></text>
     </svg>
   </div>
 </section>
@@ -330,7 +337,7 @@ const DEFAULTS = {
   ],
   pct:5, cap:2.5, flop:70, median:14,
   rbReg:0, rbFish:0, rebate:0, rebBase:"net",
-  wagerBase:"both",
+  wagerBase:"both", lockMode:"both",
   ceiling:3, depth:250, hph:65,
   goalMode:"ferry", goalVal:-5000, goalWho:5
 };
@@ -350,6 +357,7 @@ function sanitize(o){
   NUMKEYS.forEach(k=>{ o[k] = toNum(o[k], d[k]); });
   if(o.rebBase !== "gross") o.rebBase = "net";
   if(o.wagerBase !== "bonus") o.wagerBase = "both";
+  if(o.lockMode !== "bonusOnly") o.lockMode = "both";
   if(["ferry","you"].indexOf(o.goalMode) < 0) o.goalMode = "ferry";
   o.goalWho = Number.isFinite(Number(o.goalWho)) ? Math.max(0,Math.min(5,Number(o.goalWho))) : 5;
   if(!Array.isArray(o.players) || o.players.length === 0)
@@ -459,17 +467,26 @@ function model(rebateRate){
     // Auszahlbar: bei erfüllter Bedingung alles, sonst je nach Regel
     // Gewagertes schaltet frei, höchstens bis zur eigenen Einzahlung.
     // Erst mit erfüllter Bonusbedingung wird auch der Bonus frei.
-    r.unlocked = Math.min(r.wagered, r.dep);
+    // Zwei Varianten, wie die Sperre wirkt, bis die volle Bedingung erfüllt ist:
+    //  "both"       – Umsatz schaltet die EIGENE Einzahlung frei, gedeckelt bei r.dep.
+    //                  Vor der Schwelle darf er höchstens seinen umgesetzten Betrag abheben.
+    //  "bonusOnly"  – die Einzahlung ist immer voll frei, nur der Bonus ist gesperrt.
+    r.unlocked = S.lockMode==="bonusOnly" ? r.dep : Math.min(r.wagered, r.dep);
     r.cashOut  = r.freed ? r.balance : Math.min(r.balance, r.unlocked);
+    // Was er nicht mitnehmen darf, liegt noch als Chips da und kommt an dich zurück
+    r.leftover  = Math.max(r.balance - r.cashOut, 0);
+    r.bonusCost = Math.max(r.amt - Math.min(r.leftover, r.amt), 0);
     r.own     = r.cashOut - r.dep;                   // sein Ergebnis
-    r.xMax    = r.lossH>0 && r.wBase>0 ? (r.dep+r.amt)/r.lossH*r.stakeH/r.wBase : Infinity;
-    r.xMin    = rakeTableH>0 && r.wBase>0 ? (r.amt/rakeTableH)*r.stakeH/r.wBase : Infinity;
+    // Höchster Multiplikator, den er in seinen Händen noch freispielt
+    r.xFree   = r.wBase>0 ? r.hPlay*r.stakeH/r.wBase : 0;
     r.ratio   = r.lossH>0 ? r.stakeH/r.lossH : Infinity;
     r.rakeOwn = r.hPlay*r.rakeH;
   });
 
   const bonused = rows.filter(function(r){ return r.bon; });
-  const bonusSum = bonused.reduce(function(a,r){ return a+r.amt; },0);
+  const bonusSum  = bonused.reduce(function(a,r){ return a+r.amt; },0);
+  const bonusCost = bonused.reduce(function(a,r){ return a+r.bonusCost; },0);
+  const bonusBack = bonusSum - bonusCost;
   // Tischdauer: bis der letzte Bonusspieler durch ist
   const H = bonused.length
     ? Math.max.apply(null, bonused.map(function(r){ return Number.isFinite(r.hPlay)?r.hPlay:0; }))
@@ -483,11 +500,11 @@ function model(rebateRate){
     const h = r.bon ? Math.min(r.hPlay,H) : H;
     return a + (Number.isFinite(h)?h:0)*(r.rewards/100)*BB;
   },0);
-  const result = rakeTotal - bonusSum;
+  const result = rakeTotal - bonusCost;
 
   return { t, rows, regs, fish, whale, over, maxRegNet, minR, useInv, invCount, playersPerPot,
     potAll, opNet100, paidOut, rakeTableH, handsDepth,
-    bonused, bonusSum, H, rakeTotal, rewardCost, result };
+    bonused, bonusSum, bonusCost, bonusBack, H, rakeTotal, rewardCost, result };
 }
 
 /* ── Formatierung ────────────────────────────────────────── */
@@ -842,21 +859,21 @@ function draw(){
     });
     const rg = document.querySelector('[data-brange="'+i+'"]');
     if(rg && document.activeElement!==rg) rg.value = r.wx;
-    const valid = r.xMin < r.xMax;
-    const bad = !valid || r.wx<r.xMin || r.wx>r.xMax;
+    const bad = r.wx > r.xFree;
     const wv = document.querySelector('[data-bo="wx'+i+'"]');
     if(wv){ wv.textContent = fx(r.wx,2)+"×"; wv.style.color = bad?"var(--rake)":"var(--reg)"; }
     if(rg) rg.style.accentColor = bad?"var(--rake)":"var(--reg)";
     const wn = document.querySelector('[data-bo="win'+i+'"]');
-    if(wn) wn.textContent = valid
-      ? "Fenster "+fx(r.xMin,2)+"–"+fx(r.xMax,2)+" · Position "+Math.round((r.wx-r.xMin)/(r.xMax-r.xMin)*100)+"%"
-      : "kein gültiges Fenster";
+    if(wn) wn.textContent = r.xFree>0
+      ? (bad ? "zu hoch — spielt frei bis " : "spielt frei bis ")+fx(r.xFree,2)+"×"
+      : "kein Freispielen möglich";
     const f = document.querySelector('[data-bo="f'+i+'"]');
     if(f) f.textContent =
       "Invested je Hand  "+fx(r.stakeBB,2)+" bb = "+fx(r.stakeH,0)+" €  "+
         (r.measured?"(eingetragen)":"(geschätzt aus Pot × Anteil)")+"\n"+
       "Verlust je Hand   "+fx(r.lossH/BB,2)+" bb = "+fx(r.lossH,0)+" €\n"+
-      "Verhältnis        "+fx(r.ratio,2)+"   ← maximaler Multiplikator\n"+
+      "Verhältnis        "+fx(r.ratio,2)+"   (Grenze, ab der er vor dem Bust nie freispielt)\n"+
+      "spielt frei bis   "+fx(r.xFree,2)+"×   bei "+kh(r.hPlay)+" Händen\n"+
       "Umsatzziel        "+eur(r.wx*r.wBase)+"\n"+
       "Hände zum Freispielen "+kh(r.hFree)+"\n"+
       "Hände bis Bust        "+kh(r.hBust)+"\n"+
@@ -865,9 +882,12 @@ function draw(){
       "Bonus freigespielt    "+(r.freed?"ja":"NEIN")+"\n\n"+
       "gewagert bis dahin    "+eur(r.wagered)+"\n"+
       "Chips am Tisch        "+eur(r.balance)+"\n"+
+      "fällt an dich zurück  "+eur(r.leftover)+"   (Bonus kostet dich "+eur(r.bonusCost)+")\n"+
       "davon auszahlbar      "+eur(r.cashOut)+
         (r.freed ? "   (Bedingung erfüllt)"
-                 : "   (freigeschaltet "+eur(r.unlocked)+" von "+eur(r.dep)+")");
+                 : (S.lockMode==="bonusOnly"
+                     ? "   (Einzahlung immer frei)"
+                     : "   (freigeschaltet "+eur(r.unlocked)+" von "+eur(r.dep)+")"));
   });
 
   /* Rückwärts */
@@ -920,35 +940,67 @@ function draw(){
   $("kHn").textContent = "Hände · "+fx(m.H/S.hph,1)+" Std bei "+S.hph+"/h";
   $("kR").textContent = eur(m.rakeTotal);
   $("kRn").textContent = "über die ganze Session";
-  $("kB").textContent = eur(m.bonusSum);
-  $("kBn").textContent = m.bonused.length+(m.bonused.length===1?" Bonus":" Boni");
+  $("kB").textContent = eur(m.bonusCost);
+  $("kBn").textContent = m.bonusBack>1
+    ? eur(m.bonusSum)+" ausgelegt, "+eur(m.bonusBack)+" zurück"
+    : m.bonused.length+(m.bonused.length===1?" Bonus":" Boni")+", voll verspielt";
   $("kE").textContent = eur(m.result);
   $("kE").style.color = m.result>0?"var(--reg)":"var(--rake)";
   const pn = $("payoutNote");
-  if(pn) pn.innerHTML = "Jeder gewagerte Euro schaltet einen Euro seiner Einzahlung frei, "+
-    "höchstens bis zur vollen Einzahlung. Der Bonus wird erst frei, wenn die ganze Bedingung erfüllt ist.";
+  if(pn) pn.innerHTML = S.lockMode==="both"
+    ? "Er sieht seinen Fortschritt als Balken. Weil auch die eigene Einzahlung erst mit dem Umsatz "+
+      "freigeschaltet wird, spielt er tendenziell bis zur Schwelle weiter statt zufällig davor "+
+      "aufzuhören — das zieht Spielzeit, macht die Sperre für ihn aber auch spürbarer."
+    : "Seine Einzahlung ist jederzeit auszahlbar, nur der Bonus ist bis zur vollen Bedingung "+
+      "gesperrt. Weniger Zwang zum Weiterspielen, aber auch ein leichterer Ausstieg, sobald "+
+      "der Bonus ohnehin abgeschrieben ist.";
   $("resNote").innerHTML = m.bonused.length>1
     ? "Bei mehreren Boni läuft der Tisch, bis der letzte durch ist. Wer vorher geht, erzeugt ab dann keinen Rake mehr — das ist eingerechnet."
     : "Rake zählt nur, solange der Spieler tatsächlich am Tisch sitzt.";
 
-  /* Kurve */
-  const pts=[];
-  for(let r=0;r<=100;r+=2){
-    const mm = model(r);
-    const h = mm.whale.net<-0.01 ? S.depth/(-mm.whale.net/100) : null;
-    pts.push({r,h});
+  /* Kurve: dein Ergebnis über die Handzahl */
+  const cw = who || m.bonused[0];
+  if(cw && cw.lossH>0){
+    const maxH = Math.min(cw.hBust, 20000);
+    const andere = m.bonused.reduce(function(a,r){ return a + (r===cw?0:r.bonusCost); },0);
+    const punkt = function(hh){
+      const bal = Math.max((cw.dep+cw.amt) - hh*cw.lossH, 0);
+      const wag = hh*cw.stakeH;
+      const fr  = hh >= cw.hFree;
+      const co  = fr ? bal : Math.min(bal, Math.min(wag, cw.dep));
+      const lo  = Math.max(bal-co, 0);
+      const kost= Math.max(cw.amt - Math.min(lo, cw.amt), 0);
+      return hh*m.rakeTableH - kost - andere;
+    };
+    const pts=[]; const N=120;
+    for(let i2=0;i2<=N;i2++){ const hh=maxH*i2/N; pts.push({h:hh, v:punkt(hh)}); }
+    const vmin=Math.min.apply(null,pts.map(function(p){return p.v;}));
+    const vmax=Math.max.apply(null,pts.map(function(p){return p.v;}));
+    const span=(vmax-vmin)||1;
+    const cx=function(hh){ return 26 + (hh/maxH)*548; };
+    const cy=function(v){ return 129 - ((v-vmin)/span)*96; };
+    $("cpath").setAttribute("d", pts.map(function(p,i2){
+      return (i2?"L":"M")+cx(p.h).toFixed(1)+","+cy(p.v).toFixed(1); }).join(" "));
+    // Nulllinie
+    const z=$("czero");
+    if(vmin<0 && vmax>0){ z.style.display=""; z.setAttribute("y1",cy(0)); z.setAttribute("y2",cy(0)); }
+    else z.style.display="none";
+    // Freispiel-Schwelle
+    const cf=$("cfree"), cft=$("cfreetxt");
+    if(cw.hFree<=maxH){ cf.style.display=""; cf.setAttribute("x1",cx(cw.hFree)); cf.setAttribute("x2",cx(cw.hFree));
+      cft.textContent="Bonus wird seiner ab "+kh(cw.hFree); }
+    else { cf.style.display="none"; cft.textContent="spielt nie frei"; }
+    // aktuelle Handzahl
+    $("cmark").setAttribute("x1",cx(cw.hPlay)); $("cmark").setAttribute("x2",cx(cw.hPlay));
+    $("cdot").style.display=""; $("cdot").setAttribute("cx",cx(cw.hPlay)); $("cdot").setAttribute("cy",cy(punkt(cw.hPlay)));
+    $("cmax").textContent=eur(vmax)+" max";
+    $("cend").textContent=kh(maxH)+" (Bust)";
+    // Break-even suchen
+    let be=null;
+    for(let i2=1;i2<pts.length;i2++){ if(pts[i2-1].v<0 && pts[i2].v>=0){ be=pts[i2].h; break; } }
+    $("curveLab").textContent = "Dein Ergebnis über die Handzahl · "+cw.name
+      + (be!==null ? " · lohnt sich ab "+kh(be)+" Händen" : "");
   }
-  const good = pts.filter(p=>p.h);
-  const maxH = Math.max(...good.map(p=>p.h), 500);
-  const cx = r => 26 + r/100*548;
-  const cy = h => 129 - Math.min(h,maxH)/maxH*96;
-  $("cpath").setAttribute("d", good.map((p,i)=>(i?"L":"M")+cx(p.r).toFixed(1)+","+cy(p.h).toFixed(1)).join(" "));
-  $("cmark").setAttribute("x1",cx(S.rebate)); $("cmark").setAttribute("x2",cx(S.rebate));
-  const cur = isFinite(m.handsDepth)?m.handsDepth:null;
-  $("cdot").style.display = cur?"":"none";
-  if(cur){ $("cdot").setAttribute("cx",cx(S.rebate)); $("cdot").setAttribute("cy",cy(cur)); }
-  $("cmax").textContent = kh(maxH)+" Hände";
-  $("curveLab").textContent = "Hände, die "+W+" für "+S.depth+" bb braucht · über den Rebate-Satz";
 
   /* Fazit */
   const v = $("verdict");
