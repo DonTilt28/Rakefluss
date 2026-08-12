@@ -6,6 +6,9 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="theme-color" content="#10131A">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
 <title>Rakefluss</title>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Sans+Condensed:wght@600;700&display=swap');
@@ -57,6 +60,11 @@ input[type=text]:focus{outline:2px solid var(--bone);outline-offset:1px}
 .big.sm{font-size:26px}
 .unit{font-family:var(--mono);font-size:11px;color:var(--muted)}
 
+.field.dim{opacity:.4}
+.field .tag{display:none;font-family:var(--mono);font-size:8.5px;letter-spacing:.06em;
+  text-transform:uppercase;margin-left:6px;padding:1px 5px;border:1px solid currentColor}
+.field.calc .tag.calc{display:inline;color:var(--reg);border-color:var(--reg)}
+.field.calc input{border-color:var(--reg);border-style:dashed}
 .slide{margin-bottom:15px}
 .slide:last-child{margin-bottom:0}
 .srow{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:4px}
@@ -121,7 +129,7 @@ select:focus{outline:2px solid var(--bone);outline-offset:1px}
 <header>
   <h1>Rakefluss</h1>
   <div class="sub" id="sub">PLO5 · 25/50 · 6-max</div>
-  <div class="sub" style="margin-top:2px;opacity:.6">Version vom 12. August 2026, 17:10</div>
+  <div class="sub" style="margin-top:2px;opacity:.6">Version 7</div>
 </header>
 
 <!-- SZENARIEN -->
@@ -674,15 +682,20 @@ function blocksRefresh(){
     return '<span class="lab" style="margin-top:20px">Bonus für '+p.name+'</span>'+
       '<div class="panel">'+
         '<div class="fields">'+
-          '<div class="field"><label>Einzahlung €</label>'+
+          '<div class="field" id="fld-'+i+'-dep"><label>Einzahlung €'+
+            '<span class="tag calc">Ergebnis</span></label>'+
             '<input type="text" inputmode="decimal" data-b="'+i+'" data-bf="dep"></div>'+
-          '<div class="field"><label>Bonus €</label>'+
+          '<div class="field" id="fld-'+i+'-amt"><label>Bonus €'+
+            '<span class="tag calc">Ergebnis</span></label>'+
             '<input type="text" inputmode="decimal" data-b="'+i+'" data-bf="amt"></div>'+
-          '<div class="field"><label>Wager-Multiplikator</label>'+
+          '<div class="field" id="fld-'+i+'-wx"><label>Wager-Multiplikator'+
+            '<span class="tag calc">Ergebnis</span></label>'+
             '<input type="text" inputmode="decimal" data-b="'+i+'" data-bf="wx"></div>'+
-          '<div class="field"><label>Invested bb/Hand</label>'+
+          '<div class="field" id="fld-'+i+'-inv"><label>Invested bb/Hand'+
+            '<span class="tag calc">Ergebnis</span></label>'+
             '<input type="text" inputmode="decimal" data-b="'+i+'" data-bf="inv"></div>'+
-          '<div class="field"><label>Hände die er spielt</label>'+
+          '<div class="field" id="fld-'+i+'-hands"><label>Hände die er spielt'+
+            '<span class="tag calc">Ergebnis</span></label>'+
             '<input type="text" inputmode="decimal" data-b="'+i+'" data-bf="hands"></div>'+
         '</div>'+
         '<div class="slide" style="margin-top:16px">'+
@@ -895,6 +908,29 @@ function draw(){
 
   /* Rückwärts */
   const who = m.rows[S.goalWho] && m.rows[S.goalWho].bon ? m.rows[S.goalWho] : m.bonused[0];
+
+  // Markiert am Spielerblock des aktuell im Rückwärts-Panel gewählten
+  // Spielers, welches Feld gerade das GESUCHTE Ergebnis ist (wird von
+  // "Übernehmen" überschrieben). Alle anderen Felder sind echte Eingaben
+  // für diesen Modus und bleiben unverändert. Andere Bonusblöcke bleiben normal.
+  (function(){
+    const ALL = ["dep","amt","wx","inv","hands"];
+    const OUT_BY_MODE = { ferry:["amt","wx"], you:["amt","wx"], handsneeded:["hands"] };
+    const outIdx = who ? m.rows.indexOf(who) : -1;
+    const outKeys = OUT_BY_MODE[S.goalMode] || [];
+    S.players.forEach(function(p,i){
+      if(!p.bon) return;
+      ALL.forEach(function(key){
+        const el = document.getElementById("fld-"+i+"-"+key);
+        if(!el) return;
+        const isCalcHere = (i === outIdx) && outKeys.indexOf(key) >= 0;
+        el.classList.toggle("calc", isCalcHere);
+        el.classList.toggle("dim", isCalcHere);
+        el.classList.remove("dimOff"); // Altlast, falls vorhanden
+      });
+    });
+  })();
+
   $("goalLab").textContent = "Zielwert in €";
   const gmh = $("goalModeHint");
   if(gmh) gmh.innerHTML = S.goalMode==="you"
