@@ -129,7 +129,7 @@ select:focus{outline:2px solid var(--bone);outline-offset:1px}
 <header>
   <h1>Rakefluss</h1>
   <div class="sub" id="sub">PLO5 · 25/50 · 6-max</div>
-  <div class="sub" style="margin-top:2px;opacity:.6">Version 8</div>
+  <div class="sub" style="margin-top:2px;opacity:.6">Version 9</div>
 </header>
 
 <!-- SZENARIEN -->
@@ -258,6 +258,10 @@ select:focus{outline:2px solid var(--bone);outline-offset:1px}
     <div class="out">
       <span class="big" id="goalOut">–</span>
       <span class="unit" id="goalExp"></span>
+    </div>
+    <div class="out" id="goalOut2Wrap" style="display:none;margin-top:-4px">
+      <span class="big sm" id="goalOut2" style="color:var(--fish)">–</span>
+      <span class="unit" id="goalExp2"></span>
     </div>
     <div class="btns" id="applyWrap" style="display:none">
       <button class="btn" id="applyBtn">Übernehmen</button>
@@ -946,6 +950,7 @@ function draw(){
         "die Handzahl dazu aus.";
 
   if(S.goalMode === "handsneeded"){
+    $("goalOut2Wrap").style.display = "none";
     const hn = who ? solveHandsNeeded(m, who) : null;
     if(!hn){ $("goalOut").textContent="–"; $("goalExp").textContent="";
              $("applyWrap").style.display="none"; $("goalNote").textContent=""; }
@@ -973,11 +978,17 @@ function draw(){
   } else {
     const g = who ? solveGoal(m, who) : null;
     if(!g){ $("goalOut").textContent="–"; $("goalExp").textContent="";
+            $("goalOut2Wrap").style.display="none";
             $("applyWrap").style.display="none"; $("goalNote").textContent=""; }
     else {
       $("goalOut").textContent = g.ok ? eur(g.value) : "unmöglich";
       $("goalOut").style.color = g.ok?"var(--reg)":"var(--rake)";
       $("goalExp").innerHTML = "nötiger Bonus<br>damit "+g.label;
+      $("goalOut2Wrap").style.display = g.ok ? "" : "none";
+      if(g.ok){
+        $("goalOut2").textContent = fx(g.maxX,2)+"×";
+        $("goalExp2").innerHTML = "höchster Multiplikator<br>sonst spielt er in "+kh(g.hands)+" Händen nicht frei";
+      }
       $("applyWrap").style.display = g.ok?"":"none";
       $("applyBtn").onclick = function(){
         who.amtRef.amt = Math.round(g.value/100)*100;
@@ -985,8 +996,7 @@ function draw(){
         render();
       };
       $("goalNote").innerHTML = g.ok
-        ? "Dazu darf der Multiplikator höchstens <b>"+fx(g.maxX,2)+"×</b> sein, sonst spielt er den "+
-          "Bonus in "+kh(g.hands)+" Händen nicht frei. Übernehmen setzt beides."
+        ? "Übernehmen setzt beide Werte oben ein."
         : g.tooLow
           ? "Ziel zu niedrig. In "+kh(g.hands)+" Händen verliert "+who.name+" ohne jeden Bonus "+
             eur(-g.ohneBonus)+" — ein Bonus macht sein Ergebnis nur besser."
