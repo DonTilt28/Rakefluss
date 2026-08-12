@@ -129,7 +129,7 @@ select:focus{outline:2px solid var(--bone);outline-offset:1px}
 <header>
   <h1>Rakefluss</h1>
   <div class="sub" id="sub">PLO5 · 25/50 · 6-max</div>
-  <div class="sub" style="margin-top:2px;opacity:.6">Version 7</div>
+  <div class="sub" style="margin-top:2px;opacity:.6">Version 8</div>
 </header>
 
 <!-- SZENARIEN -->
@@ -268,6 +268,7 @@ select:focus{outline:2px solid var(--bone);outline-offset:1px}
 
 <!-- ERGEBNIS -->
 <section>
+  <div class="warn" id="staleHandsNote" style="display:none;margin-bottom:14px"></div>
   <span class="lab">Ergebnis je Bonus</span>
   <div id="bonusResults"></div>
   <div class="kpis" style="margin-top:16px">
@@ -995,6 +996,24 @@ function draw(){
   }
 
   /* Ergebnis je Bonus */
+  // Solange "Hände nötig" eine neue Handzahl vorschlägt, die noch nicht per
+  // "Übernehmen" eingetragen wurde, rechnet dieser Abschnitt hier unten noch
+  // mit der alten Zahl — das wird sonst leicht als Widerspruch gelesen.
+  (function(){
+    const box = document.getElementById("staleHandsNote");
+    if(!box) return;
+    if(S.goalMode==="handsneeded" && who){
+      const hn = solveHandsNeeded(m, who);
+      const cur = Math.round(who.hands);
+      if(hn && hn.ok && Math.abs(Math.round(hn.hands) - cur) > 0.5){
+        box.style.display = "";
+        box.innerHTML = "<b style='color:var(--fish)'>Noch nicht angeglichen:</b> Die Zahlen unten "+
+          "rechnen weiter mit den eingetragenen <b>"+kh(cur)+" Händen</b>, nicht mit den gerade "+
+          "gelösten <b>"+kh(hn.hands)+"</b>. Drück oben „Übernehmen\u201c, damit beides zusammenpasst.";
+      } else box.style.display = "none";
+    } else if(box) box.style.display = "none";
+  })();
+
   const br = $("bonusResults");
   if(br) br.innerHTML = m.bonused.length ? m.bonused.map(function(r){
     return '<div class="kpis" style="margin-bottom:10px">'+
