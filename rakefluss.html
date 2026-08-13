@@ -129,7 +129,7 @@ select:focus{outline:2px solid var(--bone);outline-offset:1px}
 <header>
   <h1>Rakefluss</h1>
   <div class="sub" id="sub">PLO5 · 25/50 · 6-max</div>
-  <div class="sub" style="margin-top:2px;opacity:.6">Version 10</div>
+  <div class="sub" style="margin-top:2px;opacity:.6">Version 11</div>
 </header>
 
 <!-- SZENARIEN -->
@@ -209,13 +209,16 @@ select:focus{outline:2px solid var(--bone);outline-offset:1px}
       <div class="srow"><span class="sname">Rakeback Fische</span><span class="sval" id="rbFishV" style="color:var(--fish)">0%</span></div>
       <input type="range" id="rbFish" min="0" max="100" step="5" style="accent-color:var(--fish)">
     </div>
-    <div class="slide">
+    <p class="note" style="margin-top:2px">Rakeback ist immer Rake × Satz — unabhängig von der Basis-Wahl unten. Die betrifft nur den Verlust-Rebate direkt darunter.</p>
+
+    <div class="slide" style="border-top:1px solid var(--line);margin-top:16px;padding-top:16px">
       <div class="srow"><span class="sname">Verlust-Rebate Fische</span><span class="sval" id="rebateV" style="color:var(--rake)">0%</span></div>
       <input type="range" id="rebate" min="0" max="100" step="1" style="accent-color:var(--rake)">
     </div>
-    <div class="btns" style="margin-top:14px">
-      <button class="btn on" data-grp="rebBase" data-val="net">Basis: Verlust nach Rake</button>
-      <button class="btn" data-grp="rebBase" data-val="gross">Basis: Verlust vor Rake</button>
+    <span class="sname" style="display:block;margin-top:12px">Rebate-Basis — gilt nur für diesen Verlust-Rebate</span>
+    <div class="btns" style="margin-top:8px">
+      <button class="btn on" data-grp="rebBase" data-val="net">Verlust nach Rake</button>
+      <button class="btn" data-grp="rebBase" data-val="gross">Verlust vor Rake</button>
     </div>
     <div class="formula" id="rebFormula"></div>
   </div>
@@ -226,13 +229,21 @@ select:focus{outline:2px solid var(--bone);outline-offset:1px}
   <span class="lab">Bonus · wer bekommt einen?</span>
   <div class="panel">
     <div class="btns" id="bonusPick"></div>
-    <div class="btns" style="margin-top:12px">
-      <button class="btn on" data-grp="wagerBase" data-val="both">Basis: Einzahlung + Bonus</button>
-      <button class="btn" data-grp="wagerBase" data-val="bonus">Basis: nur Bonus</button>
+
+    <div style="margin-top:16px">
+      <span class="sname">Umsatzziel bezieht sich auf</span>
+      <div class="btns" style="margin-top:8px">
+        <button class="btn on" data-grp="wagerBase" data-val="both">Einzahlung + Bonus</button>
+        <button class="btn" data-grp="wagerBase" data-val="bonus">Nur den Bonus</button>
+      </div>
     </div>
-    <div class="btns" style="margin-top:14px">
-      <button class="btn on" data-grp="lockMode" data-val="both">Einzahlung + Bonus gesperrt</button>
-      <button class="btn" data-grp="lockMode" data-val="bonusOnly">Nur Bonus gesperrt</button>
+
+    <div style="margin-top:16px">
+      <span class="sname">Was ist gesperrt, bis das Ziel erreicht ist</span>
+      <div class="btns" style="margin-top:8px">
+        <button class="btn on" data-grp="lockMode" data-val="both">Beides — Einzahlung und Bonus</button>
+        <button class="btn" data-grp="lockMode" data-val="bonusOnly">Nur der Bonus</button>
+      </div>
     </div>
     <p class="note" id="payoutNote"></p>
   </div>
@@ -662,7 +673,7 @@ $("reset").addEventListener("click", ()=>{
 /* ── Bonus-Auswahl und Blöcke ────────────────────────────── */
 let pickSig = "", blockSig = "";
 function pickRefresh(){
-  const sig = S.players.map(function(p){ return p.name+(p.bon?"1":"0"); }).join("|");
+  const sig = S.players.map(function(p){ return p.name+(p.bon?"1":"0"); }).join("|")+"|"+S.goalWho;
   if(sig === pickSig) return;
   pickSig = sig;
   const wrap = $("bonusPick");
